@@ -768,6 +768,50 @@
             if (Math.abs(video.currentTime - target) < 0.001) return;
             video.currentTime = target;
         }
+        
+        // =================================================================
+        // OPTIMIERTES SCRUBBING: FastSeek während Bewegung, präziser Seek am Ende
+        // =================================================================
+        function seekFast(video, time) {
+            if (video.readyState < 2) return;
+            const target = Math.max(0, Math.min(time, video.duration || Infinity));
+            if (Math.abs(video.currentTime - target) < 0.001) return;
+            
+            // FastSeek für flüssiges Scrubbing (nicht frame-genau, aber schnell)
+            if (video.fastSeek && typeof video.fastSeek === 'function') {
+                video.fastSeek(target);
+            } else {
+                video.currentTime = target;
+            }
+        }
+        
+        function seekPrecise(video, time) {
+            if (video.readyState < 2) return;
+            const target = Math.max(0, Math.min(time, video.duration || Infinity));
+            // Präziser Seek für exaktes Frame
+            video.currentTime = target;
+        }
+        
+        // Throttle-Funktion: max. 60 Seeks pro Sekunde
+        function createThrottle(fn, limit) {
+            let lastCall = 0;
+            let pendingCall = null;
+            return function(...args) {
+                const now = Date.now();
+                if (now - lastCall >= limit) {
+                    lastCall = now;
+                    fn.apply(this, args);
+                } else {
+                    // Speichere letzten Aufruf für finale Ausführung
+                    pendingCall = { args, context: this };
+                }
+            };
+        }
+        
+        // Throttled FastSeek (max. ~60fps = 16ms)
+        const throttledSeekFast = createThrottle((video, time) => {
+            seekFast(video, time);
+        }, 16);
 
         function updateUI() {
             const syncUIElements = () => {
@@ -887,7 +931,7 @@
         setupHoldStep('btnStepNext', 1/30);
 
         // =================================================================
-        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH
+        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH - OPTIMIERT
         // =================================================================
         function setupZoomScrub(jogId, videoId, zoomId, ticksId) {
             const jog = document.getElementById(jogId);
@@ -909,29 +953,69 @@
                 velocity: 0, 
                 inertiaActive: false, 
                 tickPos: 0,
-                isMouseDragging: false
+                isMouseDragging: false,
+                lastSeekTime: 0,  // Für Throttling
+                finalTargetTime: 0  // Für präzisen End-Seek
             };
 
             const updateTransform = () => {
                 zoomWrapper.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
+            };
+            
+            // Throttled Scrub-Funktion
+            const performScrub = (deltaX) => {
+                const now = Date.now();
+                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                state.finalTargetTime = targetTime;
+                
+                // Throttle: max alle 16ms (≈60fps)
+                if (now - state.lastSeekTime >= 16) {
+                    state.lastSeekTime = now;
+                    
+                    if (isLocked) {
+                        seekFast(v1, targetTime);
+                        seekFast(v2, targetTime + syncDiff);
+                    } else {
+                        seekFast(video, targetTime);
+                    }
+                }
+                
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+            };
+            
+            // Präziser Seek beim Loslassen
+            const finalizeScrub = () => {
+                if (state.finalTargetTime !== 0) {
+                    if (isLocked) {
+                        seekPrecise(v1, state.finalTargetTime);
+                        requestAnimationFrame(() => seekPrecise(v2, state.finalTargetTime + syncDiff));
+                    } else {
+                        seekPrecise(video, state.finalTargetTime);
+                    }
+                }
             };
 
             const applyInertia = () => {
                 if (!state.inertiaActive) return;
                 if (Math.abs(state.velocity) > 0.001) {
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
+                    state.finalTargetTime = targetTime;
+                    
                     if (isLocked) { 
-                        seekInstant(v1, targetTime); 
-                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                        seekFast(v1, targetTime); 
+                        seekFast(v2, targetTime + syncDiff);
                     } else { 
-                        seekInstant(video, targetTime); 
+                        seekFast(video, targetTime); 
                     }
                     state.velocity *= 0.95; 
                     state.tickPos += (state.velocity * 1000); 
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                     requestAnimationFrame(applyInertia);
                 } else { 
-                    state.inertiaActive = false; 
+                    state.inertiaActive = false;
+                    // Präziser End-Seek nach Inertia
+                    finalizeScrub();
                 }
             };
 
@@ -943,6 +1027,7 @@
                 state.lastX = e.clientX;
                 state.lastY = e.clientY;
                 state.velocity = 0;
+                state.finalTargetTime = 0;
                 v1.pause(); 
                 v2.pause();
                 e.preventDefault();
@@ -955,22 +1040,18 @@
                 state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.clientX;
                 
-                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                if (isLocked) { 
-                    seekInstant(v1, targetTime); 
-                    requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-                } else { 
-                    seekInstant(video, targetTime); 
-                }
-                
-                state.tickPos += deltaX;
-                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                performScrub(deltaX);
             });
 
             document.addEventListener('mouseup', () => {
-                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
-                    state.inertiaActive = true;
-                    applyInertia();
+                if (state.isMouseDragging) {
+                    if (Math.abs(state.velocity) > 0.001) {
+                        state.inertiaActive = true;
+                        applyInertia();
+                    } else {
+                        // Präziser End-Seek ohne Inertia
+                        finalizeScrub();
+                    }
                 }
                 state.isMouseDragging = false;
                 state.isDragging = false;
@@ -978,7 +1059,8 @@
 
             // TOUCH EVENTS
             jog.addEventListener('touchstart', (e) => {
-                state.inertiaActive = false; 
+                state.inertiaActive = false;
+                state.finalTargetTime = 0;
                 if (e.touches.length === 2) {
                     state.initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                     state.initialScale = state.scale;
@@ -1018,22 +1100,20 @@
                     const deltaX = e.touches[0].clientX - state.lastX;
                     state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                     state.lastX = e.touches[0].clientX;
-                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                    if (isLocked) { 
-                        seekInstant(v1, targetTime); 
-                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-                    } else { 
-                        seekInstant(video, targetTime); 
-                    }
-                    state.tickPos += deltaX;
-                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    
+                    performScrub(deltaX);
                 }
             }, {passive: false});
 
             jog.addEventListener('touchend', () => { 
-                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
-                    state.inertiaActive = true; 
-                    applyInertia(); 
+                if (state.isDragging) {
+                    if (Math.abs(state.velocity) > 0.001) { 
+                        state.inertiaActive = true; 
+                        applyInertia(); 
+                    } else {
+                        // Präziser End-Seek ohne Inertia
+                        finalizeScrub();
+                    }
                 }
                 state.isDragging = false; 
             });

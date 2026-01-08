@@ -1,17 +1,17 @@
 {
-  "name": "test-video-analyser",
+  "name": "hue-video-analyser",
   "version": "1.0.0",
-  "description": "Professionelle Videoanalyse für Sport und Bewegung",
+  "description": "Video Analyser PWA - Plain HTML, no build needed",
   "scripts": {
-    "dev": "npm run build:css && npm run watch:css",
-    "build": "npm run build:css",
-    "build:css": "tailwindcss -i ./src/input.css -o ./dist/output.css --minify",
-    "watch:css": "tailwindcss -i ./src/input.css -o ./dist/output.css --watch"
+    "build": "echo 'No build needed - plain HTML PWA'",
+    "dev": "echo 'No dev server needed - open index.html directly'",
+    "start": "echo 'No start needed - this is a static PWA'"
   },
-  "keywords": ["video", "analysis", "sports", "pwa"],
+  "keywords": [
+    "pwa",
+    "video",
+    "analysis"
+  ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "tailwindcss": "^3.4.1"
-  }
+  "license": "MIT"
 }

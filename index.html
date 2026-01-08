@@ -77,7 +77,7 @@
 
         /* KORRIGIERT: Single-Mode zeigt nur ein Video */
         .mode-single { 
-            grid-template-columns: 1fr; 
+            display: flex; 
         }
         
         /* KORRIGIERT: Dual-Mode responsive Layout */
@@ -313,7 +313,7 @@
         </div>
 
         <!-- PLAYER 2 - nur im Dual-Mode sichtbar -->
-        <div id="player2" class="video-container" style="display: none;">
+        <div id="player2" class="video-container hidden">
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time2">00:00.00</div>
@@ -903,3 +903,4 @@
     </script>
 </body>
 </html>
+

@@ -16,7 +16,7 @@
 
     <title>Video Analyser</title>
 
-    <!-- VERCEL WEB ANALYTICS - KORREKTE INTEGRATION FÜR PLAIN HTML -->
+    <!-- VERCEL WEB ANALYTICS -->
     <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
@@ -24,7 +24,6 @@
     
     <link rel="stylesheet" href="./dist/output.css">
     <style>
-        /* ... (alle Styles bleiben gleich) ... */
         :root {
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
         }
@@ -76,10 +75,23 @@
             background-color: #111;
         }
 
-        .mode-single { grid-template-columns: 1fr; }
-        .mode-compare { grid-template-columns: 1fr; }
+        /* KORRIGIERT: Single-Mode zeigt nur ein Video */
+        .mode-single { 
+            grid-template-columns: 1fr; 
+        }
+        
+        /* KORRIGIERT: Dual-Mode responsive Layout */
+        .mode-dual { 
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+        
+        /* Querformat: nebeneinander */
         @media (min-aspect-ratio: 1/1) {
-            .mode-compare { grid-template-columns: 1fr 1fr; }
+            .mode-dual { 
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: 1fr;
+            }
         }
 
         .video-container {
@@ -174,6 +186,7 @@
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.05em;
+            cursor: pointer;
         }
 
         .glass-btn:active { transform: scale(0.95); background: rgba(30, 41, 59, 0.9); }
@@ -206,13 +219,7 @@
             padding: 5px;
             border-radius: 8px;
             transition: all 0.2s;
-        }
-
-        .fullscreen-icon-wrapper {
-            transition: transform 0.3s ease;
-        }
-        .is-fullscreen .fullscreen-icon-wrapper {
-            transform: rotate(180deg);
+            cursor: pointer;
         }
 
         select.glass-select {
@@ -225,6 +232,25 @@
             border-radius: 8px;
             outline: none;
             appearance: none;
+            cursor: pointer;
+        }
+
+        /* Versteckte File-Input Buttons */
+        .hidden-file-input {
+            display: none;
+        }
+
+        /* Frame-Navigation Buttons besser sichtbar auf Mobilgeräten */
+        @media (max-aspect-ratio: 1/1) {
+            #syncPanel {
+                padding: 0.75rem;
+            }
+            #btnStepPrev, #btnStepNext {
+                min-width: 52px !important;
+                width: 52px;
+                font-size: 13px;
+                font-weight: 800;
+            }
         }
     </style>
 </head>
@@ -248,25 +274,17 @@
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time1">00:00.00</div>
-                    <button onclick="resetTimer(1)" class="reset-btn">
+                    <button onclick="resetTimer(1)" class="reset-btn" title="Timer zurücksetzen">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <div id="p1TopRight" class="ui-overlay top-right">
-                <button id="fsBtnContainer" onclick="toggleFullscreen()" class="glass-btn shadow-lg">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="fullscreen-icon-wrapper">
-                        <path id="corner-tl" d="M9 3H3v6" />
-                        <path id="corner-tr" d="M15 3h6v6" />
-                        <path id="corner-bl" d="M9 21H3v-6" />
-                        <path id="corner-br" d="M15 21h6v-6" />
-                    </svg>
-                </button>
-                <label class="glass-btn shadow-lg cursor-pointer">
+            <div class="ui-overlay top-right">
+                <button onclick="document.getElementById('fileInput1').click()" class="glass-btn shadow-lg">
                     VIDEO
-                    <input type="file" accept="video/*" class="hidden" onchange="loadVideo(event, 'main')">
-                </label>
+                </button>
+                <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
 
             <div class="ui-overlay bottom-right flex-col items-end">
@@ -294,22 +312,22 @@
             <div class="jog-overlay" id="jog1"></div>
         </div>
 
-        <!-- PLAYER 2 -->
-        <div id="player2" class="video-container hidden">
+        <!-- PLAYER 2 - nur im Dual-Mode sichtbar -->
+        <div id="player2" class="video-container" style="display: none;">
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time2">00:00.00</div>
-                    <button onclick="resetTimer(2)" class="reset-btn">
+                    <button onclick="resetTimer(2)" class="reset-btn" title="Timer zurücksetzen">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <div id="p2TopRight" class="ui-overlay top-right">
-                <label class="glass-btn shadow-lg cursor-pointer">
+            <div class="ui-overlay top-right">
+                <button onclick="document.getElementById('fileInput2').click()" class="glass-btn shadow-lg">
                     VIDEO
-                    <input type="file" accept="video/*" class="hidden" onchange="loadVideo(event, 'compare')">
-                </label>
+                </button>
+                <input type="file" accept="video/*" id="fileInput2" class="hidden-file-input" onchange="loadVideo(event, 'compare')">
             </div>
 
             <div class="ui-overlay bottom-right flex-col items-end">
@@ -338,54 +356,67 @@
         </div>
     </main>
 
-    <!-- SYNC PANEL -->
-    <div id="syncPanel" class="hidden bg-black border-t border-slate-800 p-2 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        <div class="flex items-center justify-center max-w-4xl mx-auto gap-3">
-            <button id="btnStepPrev" class="w-12 h-10 glass-btn">-F</button>
-            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="w-14 h-10 glass-btn bg-blue-600/80">
-                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <!-- SYNC PANEL - nur im Dual-Mode sichtbar, Buttons nebeneinander -->
+    <div id="syncPanel" style="display: none;" class="bg-black border-t border-slate-800 p-3 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div class="flex items-center justify-center max-w-5xl mx-auto gap-2">
+            <button id="btnStepPrev" class="glass-btn h-10 px-3">-F</button>
+            
+            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-2" title="Zum Anfang">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
+                </svg>
             </button>
-            <button id="btnStepNext" class="w-12 h-10 glass-btn">+F</button>
-
-            <div class="flex items-center gap-2 bg-slate-900/50 px-3 h-10 rounded-xl border border-white/5">
-                <span class="text-[9px] font-black text-blue-500 uppercase">Speed</span>
-                <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select border-none !bg-transparent">
+            
+            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn bg-blue-600/80 h-10 w-12">
+                <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            
+            <button id="btnStepNext" class="glass-btn h-10 px-3">+F</button>
+    
+            <div class="flex items-center gap-2 bg-slate-900/50 px-2 h-10 rounded-xl border border-white/5">
+                <span class="text-[8px] font-black text-blue-500 uppercase">Speed</span>
+                <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select border-none !bg-transparent !p-1">
                     <option value="0.125">0.12x</option>
                     <option value="0.25">0.25x</option>
                     <option value="0.5">0.50x</option>
                     <option value="1.0" selected>1.00x</option>
                 </select>
             </div>
+        
+            <button onclick="toggleLock()" id="lockBtn" class="flex items-center gap-2 glass-btn h-10 px-3">
+                <span id="lockIcon">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                </span>
+                <span id="lockText" class="text-[10px] hidden sm:inline">Lock</span>
+            </button>
+        </div>
+    </div>
             
-            <button onclick="toggleLock()" id="lockBtn" class="flex items-center gap-2 glass-btn h-10 px-4 min-w-[120px]">
+            <button onclick="toggleLock()" id="lockBtn" class="flex items-center gap-2 glass-btn h-11 px-4">
                 <span id="lockIcon">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
                 </span>
-                <span id="lockText">Sync Lock</span>
+                <span id="lockText" class="hidden sm:inline">Sync Lock</span>
             </button>
         </div>
     </div>
 
     <script>
         // =================================================================
-        // VERCEL ANALYTICS - KORREKTES EVENT TRACKING
+        // VERCEL ANALYTICS
         // =================================================================
         
-        // Init Splash Screen & Analytics
         window.addEventListener('load', () => {
-            // PWA Detection
             const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                          window.navigator.standalone === true;
             
             if (isPWA) {
                 console.log("App launched as PWA");
-                // Track PWA open event
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'pwa_open' });
                 }
             }
 
-            // Splash Screen removal
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
                 if (splash) {
@@ -393,6 +424,11 @@
                     setTimeout(() => splash.remove(), 600);
                 }
             }, 2000);
+
+            // App startet automatisch im Vollbildmodus
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log('Fullscreen nicht verfügbar:', e));
+            }
         });
 
         const v1 = document.getElementById('v1');
@@ -404,11 +440,12 @@
         let offset1 = 0;
         let offset2 = 0;
         let syncDiff = 0;
-        const SCRUB_SENSITIVITY = 0.05;
+        
+        // 25% höhere Scroll-Sensitivität
+        const SCRUB_SENSITIVITY = 0.0625;
 
         v1.addEventListener('loadedmetadata', () => {
             v1.playbackRate = parseFloat(document.getElementById('speed1').value);
-            // Track video load
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'video_loaded', data: { player: 1 } });
             }
@@ -416,76 +453,117 @@
         
         v2.addEventListener('loadedmetadata', () => {
             v2.playbackRate = parseFloat(document.getElementById('speed2').value);
-            // Track video load
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'video_loaded', data: { player: 2 } });
             }
         });
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => console.error(e));
-                // Track fullscreen enter
+        // =================================================================
+        // TASTATURSTEUERUNG FÜR DESKTOP
+        // =================================================================
+        document.addEventListener('keydown', (e) => {
+            if ('ontouchstart' in window) return;
+            
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    if (compareMode && isLocked) {
+                        toggleSyncPlay();
+                    } else if (compareMode) {
+                        const isPlaying = !v1.paused || !v2.paused;
+                        if (isPlaying) { v1.pause(); v2.pause(); } 
+                        else { v1.play(); v2.play(); }
+                    } else {
+                        togglePlay('v1');
+                    }
+                    break;
+                    
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (compareMode) {
+                        syncStep(1/30);
+                    } else {
+                        v1.pause();
+                        seekInstant(v1, v1.currentTime + 1/30);
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (compareMode) {
+                        syncStep(-1/30);
+                    } else {
+                        v1.pause();
+                        seekInstant(v1, v1.currentTime - 1/30);
+                    }
+                    break;
+            }
+        });
+
+        // =================================================================
+        // ZUM ANFANG BUTTON
+        // =================================================================
+        function goToStart() {
+            v1.pause();
+            v2.pause();
+            
+            if (isLocked) {
+                if (syncDiff >= 0) {
+                    seekInstant(v1, 0 - syncDiff);
+                    seekInstant(v2, 0);
+                } else {
+                    seekInstant(v1, 0);
+                    seekInstant(v2, 0 + syncDiff);
+                }
+                
                 if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'fullscreen_enter' });
+                    window.va('event', { name: 'go_to_start_synced' });
                 }
             } else {
-                document.exitFullscreen();
-                // Track fullscreen exit
+                seekInstant(v1, 0);
+                if (compareMode) {
+                    seekInstant(v2, 0);
+                }
+                
                 if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'fullscreen_exit' });
+                    window.va('event', { name: 'go_to_start' });
                 }
             }
         }
 
-        document.addEventListener('fullscreenchange', () => {
-            const isFS = !!document.fullscreenElement;
-            const container = document.getElementById('fsBtnContainer');
-            const tl = document.getElementById('corner-tl');
-            const tr = document.getElementById('corner-tr');
-            const bl = document.getElementById('corner-bl');
-            const br = document.getElementById('corner-br');
-
-            if (isFS) {
-                tl.setAttribute('d', 'M4 9h5V4');
-                tr.setAttribute('d', 'M20 9h-5V4');
-                bl.setAttribute('d', 'M4 15h5v5');
-                br.setAttribute('d', 'M20 15h-5v5');
-                container.classList.add('is-fullscreen');
-            } else {
-                tl.setAttribute('d', 'M9 3H3v6');
-                tr.setAttribute('d', 'M15 3h6v6');
-                bl.setAttribute('d', 'M9 21H3v-6');
-                br.setAttribute('d', 'M15 21h6v-6');
-                container.classList.remove('is-fullscreen');
-            }
-        });
-
+        // =================================================================
+        // TOGGLE COMPARE MODE - KORRIGIERT
+        // =================================================================
         function toggleCompareMode() {
             compareMode = !compareMode;
-            const p1TopRight = document.getElementById('p1TopRight');
-            const p2TopRight = document.getElementById('p2TopRight');
-            const fsBtn = document.getElementById('fsBtnContainer');
 
-            document.getElementById('player2').classList.toggle('hidden');
-            document.getElementById('syncPanel').classList.toggle('hidden');
-            document.getElementById('compareBtnText').innerText = compareMode ? 'SINGLE' : 'DUAL';
-            workbench.className = compareMode ? 'mode-compare' : 'mode-single';
+            if (compareMode) {
+                // Wechsel zu Dual-Mode
+                document.getElementById('player2').style.display = 'flex';
+                document.getElementById('syncPanel').style.display = 'block';
+                document.getElementById('compareBtnText').innerText = 'SINGLE';
+                workbench.className = 'mode-dual';
+                setGlobalSpeed(document.getElementById('globalSpeed').value);
+            } else {
+                // Wechsel zu Single-Mode
+                document.getElementById('player2').style.display = 'none';
+                document.getElementById('syncPanel').style.display = 'none';
+                document.getElementById('compareBtnText').innerText = 'DUAL';
+                workbench.className = 'mode-single';
+                isLocked = false;
+                
+                // Sync Lock Button zurücksetzen
+                const btn = document.getElementById('lockBtn');
+                const text = document.getElementById('lockText');
+                btn.classList.remove('active');
+                text.innerText = 'Sync Lock';
+            }
 
-            // Track mode change
             if (typeof window.va !== 'undefined') {
                 window.va('event', { 
                     name: 'mode_changed', 
                     data: { mode: compareMode ? 'dual' : 'single' } 
                 });
-            }
-
-            if (compareMode) {
-                p2TopRight.prepend(fsBtn);
-                setGlobalSpeed(document.getElementById('globalSpeed').value);
-            } else {
-                p1TopRight.prepend(fsBtn);
-                isLocked = false;
             }
         }
 
@@ -528,7 +606,6 @@
             else offset2 = v2.currentTime;
             updateUI();
             
-            // Track timer reset
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'timer_reset', data: { player: id } });
             }
@@ -589,7 +666,6 @@
                 if (v1.paused) v2.pause(); else v2.play();
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
                 
-                // Track sync lock enabled
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_enabled' });
                 }
@@ -597,7 +673,6 @@
                 btn.classList.remove('active');
                 text.innerText = "Sync Lock";
                 
-                // Track sync lock disabled
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_disabled' });
                 }
@@ -613,7 +688,6 @@
             document.getElementById('speed2').value = val;
             document.getElementById('globalSpeed').value = val;
             
-            // Track speed change
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'speed_changed', data: { speed: rate } });
             }
@@ -643,8 +717,11 @@
             v1.pause(); v2.pause();
             const targetTime = v1.currentTime + val;
             seekInstant(v1, targetTime);
-            if (isLocked) seekInstant(v2, targetTime + syncDiff);
-            else seekInstant(v2, v2.currentTime + val);
+            if (isLocked) {
+                requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+            } else {
+                seekInstant(v2, v2.currentTime + val);
+            }
         }
 
         function setupHoldStep(btnId, step) {
@@ -661,10 +738,14 @@
             btn.addEventListener('mousedown', handleStart);
             btn.addEventListener('touchend', stop);
             btn.addEventListener('mouseup', stop);
+            btn.addEventListener('mouseleave', stop);
         }
         setupHoldStep('btnStepPrev', -1/30);
         setupHoldStep('btnStepNext', 1/30);
 
+        // =================================================================
+        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH
+        // =================================================================
         function setupZoomScrub(jogId, videoId, zoomId, ticksId) {
             const jog = document.getElementById(jogId);
             const video = document.getElementById(videoId);
@@ -672,9 +753,20 @@
             const ticks = document.getElementById(ticksId);
             
             let state = { 
-                isDragging: false, lastX: 0, scale: 1, posX: 0, posY: 0, 
-                initialDist: 0, initialScale: 1, lastTouchX: 0, lastTouchY: 0,
-                velocity: 0, inertiaActive: false, tickPos: 0
+                isDragging: false, 
+                lastX: 0, 
+                lastY: 0,
+                scale: 1, 
+                posX: 0, 
+                posY: 0, 
+                initialDist: 0, 
+                initialScale: 1, 
+                lastTouchX: 0, 
+                lastTouchY: 0,
+                velocity: 0, 
+                inertiaActive: false, 
+                tickPos: 0,
+                isMouseDragging: false
             };
 
             const updateTransform = () => {
@@ -685,15 +777,63 @@
                 if (!state.inertiaActive) return;
                 if (Math.abs(state.velocity) > 0.001) {
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
-                    if (isLocked) { seekInstant(v1, targetTime); seekInstant(v2, targetTime + syncDiff); } 
-                    else { seekInstant(video, targetTime); }
+                    if (isLocked) { 
+                        seekInstant(v1, targetTime); 
+                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                    } else { 
+                        seekInstant(video, targetTime); 
+                    }
                     state.velocity *= 0.95; 
                     state.tickPos += (state.velocity * 1000); 
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                     requestAnimationFrame(applyInertia);
-                } else { state.inertiaActive = false; }
+                } else { 
+                    state.inertiaActive = false; 
+                }
             };
 
+            // MAUS DRAG & DROP
+            jog.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                state.isMouseDragging = true;
+                state.isDragging = true;
+                state.lastX = e.clientX;
+                state.lastY = e.clientY;
+                state.velocity = 0;
+                v1.pause(); 
+                v2.pause();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!state.isMouseDragging) return;
+                
+                const deltaX = e.clientX - state.lastX;
+                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
+                state.lastX = e.clientX;
+                
+                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                if (isLocked) { 
+                    seekInstant(v1, targetTime); 
+                    requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                } else { 
+                    seekInstant(video, targetTime); 
+                }
+                
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
+                    state.inertiaActive = true;
+                    applyInertia();
+                }
+                state.isMouseDragging = false;
+                state.isDragging = false;
+            });
+
+            // TOUCH EVENTS
             jog.addEventListener('touchstart', (e) => {
                 state.inertiaActive = false; 
                 if (e.touches.length === 2) {
@@ -702,13 +842,15 @@
                     state.lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     state.lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                     
-                    // Track zoom start
                     if (typeof window.va !== 'undefined') {
                         window.va('event', { name: 'zoom_started' });
                     }
                 } else {
-                    state.isDragging = true; v1.pause(); v2.pause();
-                    state.lastX = e.touches[0].clientX; state.velocity = 0;
+                    state.isDragging = true; 
+                    v1.pause(); 
+                    v2.pause();
+                    state.lastX = e.touches[0].clientX; 
+                    state.velocity = 0;
                 }
             }, {passive: false});
 
@@ -719,24 +861,37 @@
                     const curX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     const curY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                     state.scale = Math.max(1, Math.min(state.initialScale * (d / state.initialDist), 5));
-                    if (state.scale > 1) { state.posX += (curX - state.lastTouchX); state.posY += (curY - state.lastTouchY); } 
-                    else { state.posX = 0; state.posY = 0; }
-                    state.lastTouchX = curX; state.lastTouchY = curY;
+                    if (state.scale > 1) { 
+                        state.posX += (curX - state.lastTouchX); 
+                        state.posY += (curY - state.lastTouchY); 
+                    } else { 
+                        state.posX = 0; 
+                        state.posY = 0; 
+                    }
+                    state.lastTouchX = curX; 
+                    state.lastTouchY = curY;
                     updateTransform();
                 } else if (state.isDragging) {
                     const deltaX = e.touches[0].clientX - state.lastX;
                     state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                     state.lastX = e.touches[0].clientX;
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                    if (isLocked) { seekInstant(v1, targetTime); seekInstant(v2, targetTime + syncDiff); } 
-                    else { seekInstant(video, targetTime); }
+                    if (isLocked) { 
+                        seekInstant(v1, targetTime); 
+                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                    } else { 
+                        seekInstant(video, targetTime); 
+                    }
                     state.tickPos += deltaX;
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                 }
             }, {passive: false});
 
             jog.addEventListener('touchend', () => { 
-                if (state.isDragging && Math.abs(state.velocity) > 0.001) { state.inertiaActive = true; applyInertia(); }
+                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
+                    state.inertiaActive = true; 
+                    applyInertia(); 
+                }
                 state.isDragging = false; 
             });
             
@@ -746,7 +901,6 @@
                 state.posY = 0; 
                 updateTransform(); 
                 
-                // Track zoom reset
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'zoom_reset' });
                 }
@@ -757,5 +911,4 @@
         setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2');
     </script>
 </body>
-
 </html>

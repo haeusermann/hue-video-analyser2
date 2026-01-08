@@ -257,6 +257,79 @@
                 font-weight: 800;
             }
         }
+
+        /* Sync Panel Styles (Fallback für fehlende Tailwind-Klassen) */
+        #syncPanel {
+            background-color: #000;
+            border-top: 1px solid #1e293b;
+            padding: 0.75rem;
+            flex-shrink: 0;
+            padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+        }
+
+        #syncPanel > div {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            max-width: 80rem;
+            margin: 0 auto;
+        }
+
+        .sync-play-btn {
+            background: rgba(37, 99, 235, 0.8);
+            height: 40px;
+            width: 48px;
+        }
+
+        .h-10 {
+            height: 40px;
+        }
+
+        .px-3 {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+
+        .px-2 {
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .speed-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 0 4px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .lock-btn-inner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lock-text {
+            font-size: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .lock-text {
+                display: none;
+            }
+        }
+
+        @media (min-width: 641px) {
+            .lock-text {
+                display: inline;
+            }
+        }
     </style>
 </head>
 <body>
@@ -288,6 +361,14 @@
             <div class="ui-overlay top-right">
                 <button onclick="document.getElementById('fileInput1').click()" class="glass-btn shadow-lg">
                     VIDEO
+                </button>
+                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Vollbild umschalten">
+                    <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
+                    </svg>
+                    <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
+                        <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
+                    </svg>
                 </button>
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
@@ -362,25 +443,20 @@
     </main>
 
     <!-- SYNC PANEL - nur im Dual-Mode sichtbar, Buttons nebeneinander -->
-    <div id="syncPanel" style="display: none;" class="bg-black border-t border-slate-800 p-3 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div class="flex items-center justify-center max-w-5xl mx-auto gap-2">
-            <button id="btnStepPrev" class="glass-btn h-10 px-3">-F</button>
+    <div id="syncPanel" style="display: none;">
+        <div>
+            <button id="btnStepPrev" class="glass-btn h-10 px-3" title="Ein Frame zurück">|&lt;</button>
             
-            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-2" title="Zum Anfang">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/>
-                </svg>
-            </button>
+            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
             
-            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn bg-blue-600/80 h-10 w-12">
+            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn sync-play-btn">
                 <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
             
-            <button id="btnStepNext" class="glass-btn h-10 px-3">+F</button>
+            <button id="btnStepNext" class="glass-btn h-10 px-3" title="Ein Frame vorwärts">&gt;|</button>
 
-            <div class="flex items-center gap-2 bg-slate-900/50 px-2 h-10 rounded-xl border border-white/5">
-                <span class="text-[8px] font-black text-blue-500 uppercase">Speed</span>
-                <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select border-none !bg-transparent !p-1">
+            <div class="speed-container">
+                <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select">
                     <option value="0.125">0.12x</option>
                     <option value="0.25">0.25x</option>
                     <option value="0.5">0.50x</option>
@@ -388,11 +464,11 @@
                 </select>
             </div>
             
-            <button onclick="toggleLock()" id="lockBtn" class="flex items-center gap-2 glass-btn h-10 px-3">
+            <button onclick="toggleLock()" id="lockBtn" class="glass-btn lock-btn-inner">
                 <span id="lockIcon">
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
                 </span>
-                <span id="lockText" class="text-[10px] hidden sm:inline">Lock</span>
+                <span id="lockText" class="lock-text">Lock</span>
             </button>
         </div>
     </div>
@@ -421,11 +497,42 @@
                 }
             }, 2000);
 
-            // App startet automatisch im Vollbildmodus
-            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(e => console.log('Fullscreen nicht verfügbar:', e));
-            }
+            // Vollbild-Icon initial setzen
+            updateFullscreenIcon();
         });
+
+        // =================================================================
+        // VOLLBILD FUNKTIONEN
+        // =================================================================
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
+
+        function updateFullscreenIcon() {
+            const expandIcon = document.getElementById('fullscreenIconExpand');
+            const compressIcon = document.getElementById('fullscreenIconCompress');
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+            
+            if (expandIcon && compressIcon) {
+                expandIcon.style.display = isFullscreen ? 'none' : 'block';
+                compressIcon.style.display = isFullscreen ? 'block' : 'none';
+            }
+        }
+
+        document.addEventListener('fullscreenchange', updateFullscreenIcon);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
 
         const v1 = document.getElementById('v1');
         const v2 = document.getElementById('v2');
@@ -598,9 +705,13 @@
         }
 
         function resetTimer(id) {
-            if (id === 1) offset1 = v1.currentTime;
-            else offset2 = v2.currentTime;
-            updateUI();
+            if (id === 1) {
+                offset1 = v1.currentTime;
+                document.getElementById('time1').innerText = '00:00.00';
+            } else {
+                offset2 = v2.currentTime;
+                document.getElementById('time2').innerText = '00:00.00';
+            }
             
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'timer_reset', data: { player: id } });

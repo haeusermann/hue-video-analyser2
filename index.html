@@ -529,25 +529,25 @@
             compareMode = !compareMode;
 
             if (compareMode) {
-                // Wechsel zu Dual-Mode
-                document.getElementById('player2').style.display = 'flex';
+            // Wechsel zu Dual-Mode
+                document.getElementById('player2').classList.remove('hidden');
                 document.getElementById('syncPanel').style.display = 'block';
                 document.getElementById('compareBtnText').innerText = 'SINGLE';
                 workbench.className = 'mode-dual';
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
             } else {
                 // Wechsel zu Single-Mode
-                document.getElementById('player2').style.display = 'none';
+                document.getElementById('player2').classList.add('hidden');
                 document.getElementById('syncPanel').style.display = 'none';
                 document.getElementById('compareBtnText').innerText = 'DUAL';
                 workbench.className = 'mode-single';
                 isLocked = false;
-                
+        
                 // Sync Lock Button zurücksetzen
                 const btn = document.getElementById('lockBtn');
                 const text = document.getElementById('lockText');
                 btn.classList.remove('active');
-                text.innerText = 'Sync Lock';
+                text.innerText = 'Lock';
             }
 
             if (typeof window.va !== 'undefined') {
@@ -903,4 +903,5 @@
     </script>
 </body>
 </html>
+
 

@@ -245,7 +245,7 @@
             display: none !important;
         }
 
-        /* Frame-Navigation Buttons besser sichtbar auf Mobilgeräten */
+        /* Frame-Navigation Buttons besser sichtbar auf MobilgerÃ¤ten */
         @media (max-aspect-ratio: 1/1) {
             #syncPanel {
                 padding: 0.75rem;
@@ -258,7 +258,7 @@
             }
         }
 
-        /* Sync Panel Styles (Fallback für fehlende Tailwind-Klassen) */
+        /* Sync Panel Styles (Fallback fÃ¼r fehlende Tailwind-Klassen) */
         #syncPanel {
             background-color: #000;
             border-top: 1px solid #1e293b;
@@ -310,7 +310,7 @@
         }
 
         @media (min-width: 641px) {
-            /* Placeholder für zukünftige Desktop-Styles */
+            /* Placeholder fÃ¼r zukÃ¼nftige Desktop-Styles */
         }
     </style>
 </head>
@@ -318,7 +318,7 @@
 
     <!-- Splash Screen -->
     <div id="splash-screen">
-        <img src="Logo.png" alt="Häusermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
+        <img src="Logo.png" alt="HÃ¤usermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
         <h1 id="splash-text" class="text-white text-2xl font-bold tracking-widest hidden">Video Analyser</h1>
     </div>
 
@@ -342,7 +342,7 @@
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time1">00:00.00</div>
-                    <button onclick="resetTimer(1)" class="reset-btn" title="Timer zurücksetzen">
+                    <button onclick="resetTimer(1)" class="reset-btn" title="Timer zurÃ¼cksetzen">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
@@ -355,8 +355,11 @@
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
 
-            <div class="ui-overlay bottom-right flex-col items-end">
-                <div class="flex gap-2 items-center">
+            <div class="ui-overlay bottom-right">
+                <div id="player1Controls" class="flex gap-2 items-center" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
+                    <button onclick="stepIndividual(1, -1)" class="glass-btn h-10 px-3" title="Frame zurück">|&lt;</button>
+                    <button onclick="goToStartIndividual(1)" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
+                    <button onclick="stepIndividual(1, 1)" class="glass-btn h-10 px-3" title="Frame vor">&gt;|</button>
                     <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
                         <option value="0.125">0.12x</option>
                         <option value="0.25">0.25x</option>
@@ -385,7 +388,7 @@
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time2">00:00.00</div>
-                    <button onclick="resetTimer(2)" class="reset-btn" title="Timer zurücksetzen">
+                    <button onclick="resetTimer(2)" class="reset-btn" title="Timer zurÃ¼cksetzen">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
@@ -398,8 +401,11 @@
                 <input type="file" accept="video/*" id="fileInput2" class="hidden-file-input" onchange="loadVideo(event, 'compare')">
             </div>
 
-            <div class="ui-overlay bottom-right flex-col items-end">
-                <div class="flex gap-2 items-center">
+            <div class="ui-overlay bottom-right">
+                <div id="player2Controls" class="flex gap-2 items-center" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
+                    <button onclick="stepIndividual(2, -1)" class="glass-btn h-10 px-3" title="Frame zurück">|&lt;</button>
+                    <button onclick="goToStartIndividual(2)" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
+                    <button onclick="stepIndividual(2, 1)" class="glass-btn h-10 px-3" title="Frame vor">&gt;|</button>
                     <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
                         <option value="0.125">0.12x</option>
                         <option value="0.25">0.25x</option>
@@ -427,7 +433,7 @@
     <!-- SYNC PANEL - nur im Dual-Mode sichtbar, Buttons nebeneinander -->
     <div id="syncPanel" style="display: none;">
         <div>
-            <button id="btnStepPrev" class="glass-btn h-10 px-3" title="Ein Frame zurück">|&lt;</button>
+            <button id="btnStepPrev" class="glass-btn h-10 px-3" title="Ein Frame zurÃ¼ck">|&lt;</button>
             
             <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
             
@@ -435,7 +441,7 @@
                 <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
             
-            <button id="btnStepNext" class="glass-btn h-10 px-3" title="Ein Frame vorwärts">&gt;|</button>
+            <button id="btnStepNext" class="glass-btn h-10 px-3" title="Ein Frame vorwÃ¤rts">&gt;|</button>
 
             <div class="speed-container">
                 <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select">
@@ -523,7 +529,7 @@
         let offset2 = 0;
         let syncDiff = 0;
         
-        // 25% höhere Scroll-Sensitivität
+        // 25% hÃ¶here Scroll-SensitivitÃ¤t
         const SCRUB_SENSITIVITY = 0.0625;
 
         v1.addEventListener('loadedmetadata', () => {
@@ -541,7 +547,7 @@
         });
 
         // =================================================================
-        // TASTATURSTEUERUNG FÜR DESKTOP
+        // TASTATURSTEUERUNG FÃœR DESKTOP
         // =================================================================
         document.addEventListener('keydown', (e) => {
             if ('ontouchstart' in window) return;
@@ -583,20 +589,32 @@
         });
 
         // =================================================================
-        // ZUM ANFANG BUTTON
+        // ZUM ANFANG BUTTON - SYNC-LOCK RESPEKTIERT
         // =================================================================
         function goToStart() {
             v1.pause();
             v2.pause();
             
             if (isLocked) {
+                // Berechne, wie weit wir zurückspulen können ohne Sync zu brechen
+                // syncDiff = v2.currentTime - v1.currentTime (positiv = v2 ist weiter)
+                
+                let targetTime1, targetTime2;
+                
                 if (syncDiff >= 0) {
-                    seekInstant(v1, 0 - syncDiff);
-                    seekInstant(v2, 0);
+                    // v2 ist weiter vorne oder gleich
+                    // v1 kann zu 0 gehen, v2 geht zu syncDiff
+                    targetTime1 = 0;
+                    targetTime2 = syncDiff;
                 } else {
-                    seekInstant(v1, 0);
-                    seekInstant(v2, 0 + syncDiff);
+                    // v1 ist weiter vorne (syncDiff ist negativ)
+                    // v2 kann zu 0 gehen, v1 geht zu |syncDiff|
+                    targetTime1 = Math.abs(syncDiff);
+                    targetTime2 = 0;
                 }
+                
+                seekInstant(v1, targetTime1);
+                seekInstant(v2, targetTime2);
                 
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'go_to_start_synced' });
@@ -610,6 +628,48 @@
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'go_to_start' });
                 }
+            }
+        }
+        
+        // =================================================================
+        // INDIVIDUELLE STEUERUNGSFUNKTIONEN
+        // =================================================================
+        function stepIndividual(playerId, direction) {
+            if (isLocked) return; // Im Sync-Lock-Modus deaktiviert
+            
+            const video = playerId === 1 ? v1 : v2;
+            video.pause();
+            seekInstant(video, video.currentTime + (direction * (1/30)));
+            
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'step_individual', data: { player: playerId, direction } });
+            }
+        }
+        
+        function goToStartIndividual(playerId) {
+            if (isLocked) return; // Im Sync-Lock-Modus deaktiviert
+            
+            const video = playerId === 1 ? v1 : v2;
+            video.pause();
+            seekInstant(video, 0);
+            
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'go_to_start_individual', data: { player: playerId } });
+            }
+        }
+        
+        // =================================================================
+        // UPDATE INDIVIDUELLE CONTROLS SICHTBARKEIT
+        // =================================================================
+        function updateIndividualControlsVisibility() {
+            const p1Controls = document.getElementById('player1Controls');
+            const p2Controls = document.getElementById('player2Controls');
+            
+            if (p1Controls) {
+                p1Controls.style.display = isLocked ? 'none' : 'flex';
+            }
+            if (p2Controls) {
+                p2Controls.style.display = isLocked ? 'none' : 'flex';
             }
         }
 
@@ -634,7 +694,7 @@
                 workbench.className = 'mode-single';
                 isLocked = false;
                 
-                // Sync Lock Button zurücksetzen
+                // Sync Lock Button zurÃ¼cksetzen
                 document.getElementById('lockBtn').classList.remove('active');
             }
 
@@ -757,6 +817,9 @@
                     window.va('event', { name: 'sync_lock_disabled' });
                 }
             }
+            
+            // Aktualisiere Sichtbarkeit der individuellen Controls
+            updateIndividualControlsVisibility();
             updateUI();
         }
 

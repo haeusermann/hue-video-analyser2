@@ -309,26 +309,8 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .lock-btn-inner {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .lock-text {
-            font-size: 10px;
-        }
-
-        @media (max-width: 640px) {
-            .lock-text {
-                display: none;
-            }
-        }
-
         @media (min-width: 641px) {
-            .lock-text {
-                display: inline;
-            }
+            /* Placeholder für zukünftige Desktop-Styles */
         }
     </style>
 </head>
@@ -343,9 +325,17 @@
     <main id="workbench" class="mode-single">
         <!-- PLAYER 1 -->
         <div id="player1" class="video-container">
-            <div class="ui-overlay top-left">
+            <div class="ui-overlay top-left" style="flex-direction: column;">
                 <button onclick="toggleCompareMode()" id="compareBtn" class="glass-btn shadow-xl min-w-[70px]">
                     <span id="compareBtnText">DUAL</span>
+                </button>
+                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Vollbild umschalten">
+                    <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
+                    </svg>
+                    <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
+                        <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
+                    </svg>
                 </button>
             </div>
 
@@ -361,14 +351,6 @@
             <div class="ui-overlay top-right">
                 <button onclick="document.getElementById('fileInput1').click()" class="glass-btn shadow-lg">
                     VIDEO
-                </button>
-                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Vollbild umschalten">
-                    <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
-                    </svg>
-                    <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
-                        <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
-                    </svg>
                 </button>
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
@@ -464,11 +446,8 @@
                 </select>
             </div>
             
-            <button onclick="toggleLock()" id="lockBtn" class="glass-btn lock-btn-inner">
-                <span id="lockIcon">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
-                </span>
-                <span id="lockText" class="lock-text">Lock</span>
+            <button onclick="toggleLock()" id="lockBtn" class="glass-btn h-10 px-3">
+                <svg id="lockIconOpen" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
             </button>
         </div>
     </div>
@@ -656,10 +635,7 @@
                 isLocked = false;
                 
                 // Sync Lock Button zurücksetzen
-                const btn = document.getElementById('lockBtn');
-                const text = document.getElementById('lockText');
-                btn.classList.remove('active');
-                text.innerText = 'Sync Lock';
+                document.getElementById('lockBtn').classList.remove('active');
             }
 
             if (typeof window.va !== 'undefined') {
@@ -764,12 +740,10 @@
         function toggleLock() {
             isLocked = !isLocked;
             const btn = document.getElementById('lockBtn');
-            const text = document.getElementById('lockText');
 
             if (isLocked) {
                 syncDiff = v2.currentTime - v1.currentTime;
                 btn.classList.add('active');
-                text.innerText = "Sync Lock: EIN";
                 if (v1.paused) v2.pause(); else v2.play();
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
                 
@@ -778,7 +752,6 @@
                 }
             } else {
                 btn.classList.remove('active');
-                text.innerText = "Sync Lock";
                 
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_disabled' });

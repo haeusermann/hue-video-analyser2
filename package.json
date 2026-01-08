@@ -1,0 +1,17 @@
+{
+  "name": "test-video-analyser",
+  "version": "1.0.0",
+  "description": "Professionelle Videoanalyse für Sport und Bewegung",
+  "scripts": {
+    "dev": "npm run build:css && npm run watch:css",
+    "build": "npm run build:css",
+    "build:css": "tailwindcss -i ./src/input.css -o ./dist/output.css --minify",
+    "watch:css": "tailwindcss -i ./src/input.css -o ./dist/output.css --watch"
+  },
+  "keywords": ["video", "analysis", "sports", "pwa"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

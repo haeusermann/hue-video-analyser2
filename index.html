@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MotionAnalyzer">
+    
+    <link rel="apple-touch-icon" href="Logo.png">
+    <link rel="manifest" href="manifest.json">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+
+    <title>Video Analyser</title>
+
+    <!-- VERCEL WEB ANALYTICS - KORREKTE INTEGRATION FÜR PLAIN HTML -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ... (alle Styles bleiben gleich) ... */
+        :root {
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        
+        body {
+            overscroll-behavior-y: contain;
+            touch-action: none;
+            background-color: #000;
+            user-select: none;
+            -webkit-user-select: none;
+            height: 100dvh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out, visibility 0.5s;
+        }
+
+        #splash-screen img {
+            max-width: 250px;
+            width: 60%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        #splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        #workbench {
+            display: grid;
+            gap: 2px;
+            flex: 1;
+            min-height: 0;
+            background-color: #111;
+        }
+
+        .mode-single { grid-template-columns: 1fr; }
+        .mode-compare { grid-template-columns: 1fr; }
+        @media (min-aspect-ratio: 1/1) {
+            .mode-compare { grid-template-columns: 1fr 1fr; }
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .zoom-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            will-change: transform;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .jog-ticks {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            pointer-events: none;
+            z-index: 15;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+            opacity: 0.6;
+            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+        }
+
+        .tick-container {
+            display: flex;
+            gap: 12px;
+            height: 100%;
+            align-items: flex-end;
+            transform: translateX(0px);
+            will-change: transform;
+        }
+
+        .tick { width: 1px; height: 12px; background: rgba(255,255,255,0.4); }
+        .tick.major { height: 20px; background: #3b82f6; width: 2px; }
+
+        .jog-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 5;
+            touch-action: none;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            z-index: 30;
+            pointer-events: auto;
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .top-left { top: 0; left: 0; }
+        .top-right { top: 0; right: 0; }
+        .top-center { top: 0; left: 50%; transform: translateX(-50%); }
+        .bottom-right { bottom: 0; right: 0; }
+
+        .glass-btn {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .glass-btn:active { transform: scale(0.95); background: rgba(30, 41, 59, 0.9); }
+        .glass-btn.active { background: #3b82f6; color: white; border-color: #60a5fa; }
+        .glass-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+        .time-badge-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 4px 12px;
+            border-radius: 0 0 12px 12px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-top: none;
+        }
+
+        .time-badge {
+            font-family: ui-monospace, monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .reset-btn {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 5px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .fullscreen-icon-wrapper {
+            transition: transform 0.3s ease;
+        }
+        .is-fullscreen .fullscreen-icon-wrapper {
+            transform: rotate(180deg);
+        }
+
+        select.glass-select {
+            background: rgba(15, 23, 42, 0.8);
+            color: #60a5fa;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 8px;
+            outline: none;
+            appearance: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <img src="Logo.png" alt="Häusermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
+        <h1 id="splash-text" class="text-white text-2xl font-bold tracking-widest hidden">Video Analyser</h1>
+    </div>
+
+    <main id="workbench" class="mode-single">
+        <!-- PLAYER 1 -->
+        <div id="player1" class="video-container">
+            <div class="ui-overlay top-left">
+                <button onclick="toggleCompareMode()" id="compareBtn" class="glass-btn shadow-xl min-w-[70px]">
+                    <span id="compareBtnText">DUAL</span>
+                </button>
+            </div>
+
+            <div class="ui-overlay top-center">
+                <div class="time-badge-container">
+                    <div class="time-badge" id="time1">00:00.00</div>
+                    <button onclick="resetTimer(1)" class="reset-btn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="p1TopRight" class="ui-overlay top-right">
+                <button id="fsBtnContainer" onclick="toggleFullscreen()" class="glass-btn shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="fullscreen-icon-wrapper">
+                        <path id="corner-tl" d="M9 3H3v6" />
+                        <path id="corner-tr" d="M15 3h6v6" />
+                        <path id="corner-bl" d="M9 21H3v-6" />
+                        <path id="corner-br" d="M15 21h6v-6" />
+                    </svg>
+                </button>
+                <label class="glass-btn shadow-lg cursor-pointer">
+                    VIDEO
+                    <input type="file" accept="video/*" class="hidden" onchange="loadVideo(event, 'main')">
+                </label>
+            </div>
+
+            <div class="ui-overlay bottom-right flex-col items-end">
+                <div class="flex gap-2 items-center">
+                    <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
+                        <option value="0.125">0.12x</option>
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.50x</option>
+                        <option value="1.0" selected>1.00x</option>
+                    </select>
+                    <button onclick="togglePlay('v1')" id="playBtn1" class="glass-btn bg-blue-600/80 w-12 h-12 rounded-full">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="zoom1" class="zoom-wrapper">
+                <video id="v1" playsinline preload="auto" muted></video>
+            </div>
+            
+            <div class="jog-ticks">
+                <div id="ticks1" class="tick-container"></div>
+            </div>
+            
+            <div class="jog-overlay" id="jog1"></div>
+        </div>
+
+        <!-- PLAYER 2 -->
+        <div id="player2" class="video-container hidden">
+            <div class="ui-overlay top-center">
+                <div class="time-badge-container">
+                    <div class="time-badge" id="time2">00:00.00</div>
+                    <button onclick="resetTimer(2)" class="reset-btn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="p2TopRight" class="ui-overlay top-right">
+                <label class="glass-btn shadow-lg cursor-pointer">
+                    VIDEO
+                    <input type="file" accept="video/*" class="hidden" onchange="loadVideo(event, 'compare')">
+                </label>
+            </div>
+
+            <div class="ui-overlay bottom-right flex-col items-end">
+                <div class="flex gap-2 items-center">
+                    <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
+                        <option value="0.125">0.12x</option>
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.50x</option>
+                        <option value="1.0" selected>1.00x</option>
+                    </select>
+                    <button onclick="togglePlay('v2')" id="playBtn2" class="glass-btn w-12 h-10 rounded-full">
+                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="zoom2" class="zoom-wrapper">
+                <video id="v2" playsinline preload="auto" muted></video>
+            </div>
+
+            <div class="jog-ticks">
+                <div id="ticks2" class="tick-container"></div>
+            </div>
+
+            <div class="jog-overlay" id="jog2"></div>
+        </div>
+    </main>
+
+    <!-- SYNC PANEL -->
+    <div id="syncPanel" class="hidden bg-black border-t border-slate-800 p-2 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div class="flex items-center justify-center max-w-4xl mx-auto gap-3">
+            <button id="btnStepPrev" class="w-12 h-10 glass-btn">-F</button>
+            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="w-14 h-10 glass-btn bg-blue-600/80">
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button id="btnStepNext" class="w-12 h-10 glass-btn">+F</button>
+
+            <div class="flex items-center gap-2 bg-slate-900/50 px-3 h-10 rounded-xl border border-white/5">
+                <span class="text-[9px] font-black text-blue-500 uppercase">Speed</span>
+                <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select border-none !bg-transparent">
+                    <option value="0.125">0.12x</option>
+                    <option value="0.25">0.25x</option>
+                    <option value="0.5">0.50x</option>
+                    <option value="1.0" selected>1.00x</option>
+                </select>
+            </div>
+            
+            <button onclick="toggleLock()" id="lockBtn" class="flex items-center gap-2 glass-btn h-10 px-4 min-w-[120px]">
+                <span id="lockIcon">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                </span>
+                <span id="lockText">Sync Lock</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // =================================================================
+        // VERCEL ANALYTICS - KORREKTES EVENT TRACKING
+        // =================================================================
+        
+        // Init Splash Screen & Analytics
+        window.addEventListener('load', () => {
+            // PWA Detection
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                         window.navigator.standalone === true;
+            
+            if (isPWA) {
+                console.log("App launched as PWA");
+                // Track PWA open event
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'pwa_open' });
+                }
+            }
+
+            // Splash Screen removal
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                if (splash) {
+                    splash.classList.add('hidden');
+                    setTimeout(() => splash.remove(), 600);
+                }
+            }, 2000);
+        });
+
+        const v1 = document.getElementById('v1');
+        const v2 = document.getElementById('v2');
+        const workbench = document.getElementById('workbench');
+        
+        let compareMode = false;
+        let isLocked = false;
+        let offset1 = 0;
+        let offset2 = 0;
+        let syncDiff = 0;
+        const SCRUB_SENSITIVITY = 0.05;
+
+        v1.addEventListener('loadedmetadata', () => {
+            v1.playbackRate = parseFloat(document.getElementById('speed1').value);
+            // Track video load
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'video_loaded', data: { player: 1 } });
+            }
+        });
+        
+        v2.addEventListener('loadedmetadata', () => {
+            v2.playbackRate = parseFloat(document.getElementById('speed2').value);
+            // Track video load
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'video_loaded', data: { player: 2 } });
+            }
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => console.error(e));
+                // Track fullscreen enter
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'fullscreen_enter' });
+                }
+            } else {
+                document.exitFullscreen();
+                // Track fullscreen exit
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'fullscreen_exit' });
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const isFS = !!document.fullscreenElement;
+            const container = document.getElementById('fsBtnContainer');
+            const tl = document.getElementById('corner-tl');
+            const tr = document.getElementById('corner-tr');
+            const bl = document.getElementById('corner-bl');
+            const br = document.getElementById('corner-br');
+
+            if (isFS) {
+                tl.setAttribute('d', 'M4 9h5V4');
+                tr.setAttribute('d', 'M20 9h-5V4');
+                bl.setAttribute('d', 'M4 15h5v5');
+                br.setAttribute('d', 'M20 15h-5v5');
+                container.classList.add('is-fullscreen');
+            } else {
+                tl.setAttribute('d', 'M9 3H3v6');
+                tr.setAttribute('d', 'M15 3h6v6');
+                bl.setAttribute('d', 'M9 21H3v-6');
+                br.setAttribute('d', 'M15 21h6v-6');
+                container.classList.remove('is-fullscreen');
+            }
+        });
+
+        function toggleCompareMode() {
+            compareMode = !compareMode;
+            const p1TopRight = document.getElementById('p1TopRight');
+            const p2TopRight = document.getElementById('p2TopRight');
+            const fsBtn = document.getElementById('fsBtnContainer');
+
+            document.getElementById('player2').classList.toggle('hidden');
+            document.getElementById('syncPanel').classList.toggle('hidden');
+            document.getElementById('compareBtnText').innerText = compareMode ? 'SINGLE' : 'DUAL';
+            workbench.className = compareMode ? 'mode-compare' : 'mode-single';
+
+            // Track mode change
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { 
+                    name: 'mode_changed', 
+                    data: { mode: compareMode ? 'dual' : 'single' } 
+                });
+            }
+
+            if (compareMode) {
+                p2TopRight.prepend(fsBtn);
+                setGlobalSpeed(document.getElementById('globalSpeed').value);
+            } else {
+                p1TopRight.prepend(fsBtn);
+                isLocked = false;
+            }
+        }
+
+        function generateTicks(containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for(let i=0; i<100; i++) {
+                const tick = document.createElement('div');
+                tick.className = i % 10 === 0 ? 'tick major' : 'tick';
+                container.appendChild(tick);
+            }
+        }
+        generateTicks('ticks1');
+        generateTicks('ticks2');
+
+        function loadVideo(event, target) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            
+            if (target === 'main') { 
+                v1.src = url; 
+                const speedSelect = document.getElementById('speed1');
+                speedSelect.value = "1.0";
+                v1.playbackRate = 1.0; 
+                v1.load(); 
+                offset1 = 0; 
+            } else { 
+                v2.src = url; 
+                const speedSelect = document.getElementById('speed2');
+                speedSelect.value = "1.0";
+                v2.playbackRate = 1.0;
+                v2.load(); 
+                offset2 = 0; 
+            }
+        }
+
+        function resetTimer(id) {
+            if (id === 1) offset1 = v1.currentTime;
+            else offset2 = v2.currentTime;
+            updateUI();
+            
+            // Track timer reset
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'timer_reset', data: { player: id } });
+            }
+        }
+
+        function formatTime(seconds, offset = 0) {
+            const diff = Math.max(0, seconds - offset);
+            const m = Math.floor(diff / 60);
+            const s = Math.floor(diff % 60);
+            const ms = Math.floor((diff % 1) * 100);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+        }
+
+        function seekInstant(video, time) {
+            if (video.readyState < 2) return;
+            const target = Math.max(0, Math.min(time, video.duration || Infinity));
+            if (Math.abs(video.currentTime - target) < 0.001) return;
+            video.currentTime = target;
+        }
+
+        function updateUI() {
+            const syncUIElements = () => {
+                document.getElementById('time1').innerText = formatTime(v1.currentTime, offset1);
+                document.getElementById('time2').innerText = formatTime(v2.currentTime, offset2);
+
+                const playIcon = '<svg width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+                const pauseIcon = '<svg width="24" height="24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+                document.getElementById('playBtn1').innerHTML = v1.paused ? playIcon : pauseIcon;
+                if (compareMode) {
+                    document.getElementById('playBtn2').innerHTML = v2.paused ? playIcon : pauseIcon;
+                    document.getElementById('syncPlayBtn').innerHTML = (v1.paused && v2.paused) ? playIcon : pauseIcon;
+                    document.getElementById('playBtn1').classList.toggle('disabled', isLocked);
+                    document.getElementById('playBtn2').classList.toggle('disabled', isLocked);
+                }
+            };
+
+            if ('requestVideoFrameCallback' in v1) {
+                v1.requestVideoFrameCallback(syncUIElements);
+                if (compareMode) v2.requestVideoFrameCallback(syncUIElements);
+            } else {
+                requestAnimationFrame(syncUIElements);
+            }
+        }
+
+        v1.ontimeupdate = updateUI;
+        v2.ontimeupdate = updateUI;
+
+        function toggleLock() {
+            isLocked = !isLocked;
+            const btn = document.getElementById('lockBtn');
+            const text = document.getElementById('lockText');
+
+            if (isLocked) {
+                syncDiff = v2.currentTime - v1.currentTime;
+                btn.classList.add('active');
+                text.innerText = "Sync Lock: EIN";
+                if (v1.paused) v2.pause(); else v2.play();
+                setGlobalSpeed(document.getElementById('globalSpeed').value);
+                
+                // Track sync lock enabled
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'sync_lock_enabled' });
+                }
+            } else {
+                btn.classList.remove('active');
+                text.innerText = "Sync Lock";
+                
+                // Track sync lock disabled
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'sync_lock_disabled' });
+                }
+            }
+            updateUI();
+        }
+
+        function setGlobalSpeed(val) {
+            const rate = parseFloat(val);
+            v1.playbackRate = rate;
+            v2.playbackRate = rate;
+            document.getElementById('speed1').value = val;
+            document.getElementById('speed2').value = val;
+            document.getElementById('globalSpeed').value = val;
+            
+            // Track speed change
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'speed_changed', data: { speed: rate } });
+            }
+        }
+
+        function setSpeed(id, val) { 
+            const v = document.getElementById(id);
+            if (v) v.playbackRate = parseFloat(val);
+            if (compareMode && !isLocked) {
+                document.getElementById('globalSpeed').value = val;
+            }
+        }
+
+        function togglePlay(id) {
+            if (isLocked) return;
+            const v = document.getElementById(id);
+            v.paused ? v.play() : v.pause();
+        }
+
+        function toggleSyncPlay() {
+            const isPlaying = !v1.paused || !v2.paused;
+            if (isPlaying) { v1.pause(); v2.pause(); } 
+            else { v1.play(); v2.play(); }
+        }
+
+        function syncStep(val) {
+            v1.pause(); v2.pause();
+            const targetTime = v1.currentTime + val;
+            seekInstant(v1, targetTime);
+            if (isLocked) seekInstant(v2, targetTime + syncDiff);
+            else seekInstant(v2, v2.currentTime + val);
+        }
+
+        function setupHoldStep(btnId, step) {
+            const btn = document.getElementById(btnId);
+            let interval = null;
+            let timeout = null;
+            const handleStart = (e) => { 
+                e.preventDefault(); 
+                syncStep(step); 
+                timeout = setTimeout(() => { interval = setInterval(() => syncStep(step * 0.5), 40); }, 400); 
+            };
+            const stop = () => { clearTimeout(timeout); clearInterval(interval); };
+            btn.addEventListener('touchstart', handleStart);
+            btn.addEventListener('mousedown', handleStart);
+            btn.addEventListener('touchend', stop);
+            btn.addEventListener('mouseup', stop);
+        }
+        setupHoldStep('btnStepPrev', -1/30);
+        setupHoldStep('btnStepNext', 1/30);
+
+        function setupZoomScrub(jogId, videoId, zoomId, ticksId) {
+            const jog = document.getElementById(jogId);
+            const video = document.getElementById(videoId);
+            const zoomWrapper = document.getElementById(zoomId);
+            const ticks = document.getElementById(ticksId);
+            
+            let state = { 
+                isDragging: false, lastX: 0, scale: 1, posX: 0, posY: 0, 
+                initialDist: 0, initialScale: 1, lastTouchX: 0, lastTouchY: 0,
+                velocity: 0, inertiaActive: false, tickPos: 0
+            };
+
+            const updateTransform = () => {
+                zoomWrapper.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
+            };
+
+            const applyInertia = () => {
+                if (!state.inertiaActive) return;
+                if (Math.abs(state.velocity) > 0.001) {
+                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
+                    if (isLocked) { seekInstant(v1, targetTime); seekInstant(v2, targetTime + syncDiff); } 
+                    else { seekInstant(video, targetTime); }
+                    state.velocity *= 0.95; 
+                    state.tickPos += (state.velocity * 1000); 
+                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    requestAnimationFrame(applyInertia);
+                } else { state.inertiaActive = false; }
+            };
+
+            jog.addEventListener('touchstart', (e) => {
+                state.inertiaActive = false; 
+                if (e.touches.length === 2) {
+                    state.initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    state.initialScale = state.scale;
+                    state.lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    state.lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    
+                    // Track zoom start
+                    if (typeof window.va !== 'undefined') {
+                        window.va('event', { name: 'zoom_started' });
+                    }
+                } else {
+                    state.isDragging = true; v1.pause(); v2.pause();
+                    state.lastX = e.touches[0].clientX; state.velocity = 0;
+                }
+            }, {passive: false});
+
+            jog.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    const curX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const curY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    state.scale = Math.max(1, Math.min(state.initialScale * (d / state.initialDist), 5));
+                    if (state.scale > 1) { state.posX += (curX - state.lastTouchX); state.posY += (curY - state.lastTouchY); } 
+                    else { state.posX = 0; state.posY = 0; }
+                    state.lastTouchX = curX; state.lastTouchY = curY;
+                    updateTransform();
+                } else if (state.isDragging) {
+                    const deltaX = e.touches[0].clientX - state.lastX;
+                    state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
+                    state.lastX = e.touches[0].clientX;
+                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                    if (isLocked) { seekInstant(v1, targetTime); seekInstant(v2, targetTime + syncDiff); } 
+                    else { seekInstant(video, targetTime); }
+                    state.tickPos += deltaX;
+                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                }
+            }, {passive: false});
+
+            jog.addEventListener('touchend', () => { 
+                if (state.isDragging && Math.abs(state.velocity) > 0.001) { state.inertiaActive = true; applyInertia(); }
+                state.isDragging = false; 
+            });
+            
+            jog.addEventListener('dblclick', () => { 
+                state.scale = 1; 
+                state.posX = 0; 
+                state.posY = 0; 
+                updateTransform(); 
+                
+                // Track zoom reset
+                if (typeof window.va !== 'undefined') {
+                    window.va('event', { name: 'zoom_reset' });
+                }
+            });
+        }
+
+        setupZoomScrub('jog1', 'v1', 'zoom1', 'ticks1');
+        setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2');
+    </script>
+</body>
+</html>

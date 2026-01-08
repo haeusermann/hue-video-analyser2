@@ -77,7 +77,7 @@
 
         /* KORRIGIERT: Single-Mode zeigt nur ein Video */
         .mode-single { 
-            display: flex; 
+            grid-template-columns: 1fr; 
         }
         
         /* KORRIGIERT: Dual-Mode responsive Layout */
@@ -240,7 +240,7 @@
             display: none;
         }
 
-        /*Player 2 verstecken im Single-Modus
+        /* WICHTIG: Player 2 verstecken im Single-Mode */
         #player2.hidden {
             display: none !important;
         }
@@ -318,7 +318,7 @@
         </div>
 
         <!-- PLAYER 2 - nur im Dual-Mode sichtbar -->
-        <div id="player2" class="video-container hidden">
+        <div id="player2" class="video-container" style="display: none;">
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time2">00:00.00</div>
@@ -377,7 +377,7 @@
             </button>
             
             <button id="btnStepNext" class="glass-btn h-10 px-3">+F</button>
-    
+
             <div class="flex items-center gap-2 bg-slate-900/50 px-2 h-10 rounded-xl border border-white/5">
                 <span class="text-[8px] font-black text-blue-500 uppercase">Speed</span>
                 <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select border-none !bg-transparent !p-1">
@@ -534,25 +534,25 @@
             compareMode = !compareMode;
 
             if (compareMode) {
-            // Wechsel zu Dual-Mode
-                document.getElementById('player2').classList.remove('hidden');
+                // Wechsel zu Dual-Mode
+                document.getElementById('player2').style.display = 'flex';
                 document.getElementById('syncPanel').style.display = 'block';
                 document.getElementById('compareBtnText').innerText = 'SINGLE';
                 workbench.className = 'mode-dual';
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
             } else {
                 // Wechsel zu Single-Mode
-                document.getElementById('player2').classList.add('hidden');
+                document.getElementById('player2').style.display = 'none';
                 document.getElementById('syncPanel').style.display = 'none';
                 document.getElementById('compareBtnText').innerText = 'DUAL';
                 workbench.className = 'mode-single';
                 isLocked = false;
-        
+                
                 // Sync Lock Button zurücksetzen
                 const btn = document.getElementById('lockBtn');
                 const text = document.getElementById('lockText');
                 btn.classList.remove('active');
-                text.innerText = 'Lock';
+                text.innerText = 'Sync Lock';
             }
 
             if (typeof window.va !== 'undefined') {
@@ -908,6 +908,3 @@
     </script>
 </body>
 </html>
-
-
-

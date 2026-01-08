@@ -968,8 +968,8 @@
                 const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
                 state.finalTargetTime = targetTime;
                 
-                // Throttle: max alle 16ms (≈60fps)
-                if (now - state.lastSeekTime >= 16) {
+                // Throttle: max alle 33ms (≈30fps, passend für 30fps Videos)
+                if (now - state.lastSeekTime >= 33) {
                     state.lastSeekTime = now;
                     
                     if (isLocked) {

@@ -158,11 +158,55 @@
             touch-action: none;
         }
 
+        /* Globales Jog-Wheel für Sync-Lock Modus */
+        .global-jog-container {
+            position: relative;
+            width: 100%;
+            height: 50px;
+            margin-top: 8px;
+        }
+
+        .global-jog-ticks {
+            position: relative;
+            width: 100%;
+            height: 40px;
+            pointer-events: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+            opacity: 0.8;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+
+        .global-jog-container .jog-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10;
+            touch-action: none;
+        }
+
+        /* Verstecke individuelle Player-Controls wenn Sync-Lock aktiv */
+        .sync-locked #controls1,
+        .sync-locked #controls2 {
+            display: none !important;
+        }
+
+        .sync-locked #jogTicks1,
+        .sync-locked #jogTicks2 {
+            display: none !important;
+        }
+
         .ui-overlay {
             position: absolute;
             z-index: 30;
             pointer-events: auto;
             display: flex;
+            flex-direction: row;
+            align-items: center;
             gap: 8px;
             padding: 10px;
         }
@@ -245,19 +289,6 @@
             display: none !important;
         }
 
-        /* Frame-Navigation Buttons besser sichtbar auf MobilgerÃ¤ten */
-        @media (max-aspect-ratio: 1/1) {
-            #syncPanel {
-                padding: 0.75rem;
-            }
-            #btnStepPrev, #btnStepNext {
-                min-width: 52px !important;
-                width: 52px;
-                font-size: 13px;
-                font-weight: 800;
-            }
-        }
-
         /* Sync Panel Styles (Fallback fÃ¼r fehlende Tailwind-Klassen) */
         #syncPanel {
             background-color: #000;
@@ -291,11 +322,6 @@
         .px-3 {
             padding-left: 12px;
             padding-right: 12px;
-        }
-
-        .px-2 {
-            padding-left: 8px;
-            padding-right: 8px;
         }
 
         .speed-container {
@@ -355,28 +381,26 @@
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
 
-            <div class="ui-overlay bottom-right">
-                <div id="player1Controls" class="flex gap-2 items-center" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
-                    <button onclick="stepIndividual(1, -1)" class="glass-btn h-10 px-3" title="Frame zurück">|&lt;</button>
-                    <button onclick="goToStartIndividual(1)" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
-                    <button onclick="stepIndividual(1, 1)" class="glass-btn h-10 px-3" title="Frame vor">&gt;|</button>
-                    <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
-                        <option value="0.125">0.12x</option>
-                        <option value="0.25">0.25x</option>
-                        <option value="0.5">0.50x</option>
-                        <option value="1.0" selected>1.00x</option>
-                    </select>
-                    <button onclick="togglePlay('v1')" id="playBtn1" class="glass-btn bg-blue-600/80 w-12 h-12 rounded-full">
-                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                </div>
+            <div class="ui-overlay bottom-right" id="controls1">
+                <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Zum Anfang">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
+                    <option value="0.125">0.12x</option>
+                    <option value="0.25">0.25x</option>
+                    <option value="0.5">0.50x</option>
+                    <option value="1.0" selected>1.00x</option>
+                </select>
+                <button onclick="togglePlay('v1')" id="playBtn1" class="glass-btn bg-blue-600/80 w-12 h-12 rounded-full">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </button>
             </div>
 
             <div id="zoom1" class="zoom-wrapper">
                 <video id="v1" playsinline preload="auto" muted></video>
             </div>
             
-            <div class="jog-ticks">
+            <div class="jog-ticks" id="jogTicks1">
                 <div id="ticks1" class="tick-container"></div>
             </div>
             
@@ -401,28 +425,26 @@
                 <input type="file" accept="video/*" id="fileInput2" class="hidden-file-input" onchange="loadVideo(event, 'compare')">
             </div>
 
-            <div class="ui-overlay bottom-right">
-                <div id="player2Controls" class="flex gap-2 items-center" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
-                    <button onclick="stepIndividual(2, -1)" class="glass-btn h-10 px-3" title="Frame zurück">|&lt;</button>
-                    <button onclick="goToStartIndividual(2)" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
-                    <button onclick="stepIndividual(2, 1)" class="glass-btn h-10 px-3" title="Frame vor">&gt;|</button>
-                    <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
-                        <option value="0.125">0.12x</option>
-                        <option value="0.25">0.25x</option>
-                        <option value="0.5">0.50x</option>
-                        <option value="1.0" selected>1.00x</option>
-                    </select>
-                    <button onclick="togglePlay('v2')" id="playBtn2" class="glass-btn w-12 h-10 rounded-full">
-                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                </div>
+            <div class="ui-overlay bottom-right" id="controls2">
+                <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Zum Anfang">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
+                    <option value="0.125">0.12x</option>
+                    <option value="0.25">0.25x</option>
+                    <option value="0.5">0.50x</option>
+                    <option value="1.0" selected>1.00x</option>
+                </select>
+                <button onclick="togglePlay('v2')" id="playBtn2" class="glass-btn w-12 h-10 rounded-full">
+                    <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </button>
             </div>
 
             <div id="zoom2" class="zoom-wrapper">
                 <video id="v2" playsinline preload="auto" muted></video>
             </div>
 
-            <div class="jog-ticks">
+            <div class="jog-ticks" id="jogTicks2">
                 <div id="ticks2" class="tick-container"></div>
             </div>
 
@@ -430,18 +452,16 @@
         </div>
     </main>
 
-    <!-- SYNC PANEL - nur im Dual-Mode sichtbar, Buttons nebeneinander -->
+    <!-- SYNC PANEL - nur im Dual-Mode sichtbar -->
     <div id="syncPanel" style="display: none;">
         <div>
-            <button id="btnStepPrev" class="glass-btn h-10 px-3" title="Ein Frame zurÃ¼ck">|&lt;</button>
-            
-            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-2" title="Zum Anfang">|&lt;&lt;</button>
+            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-3" title="Zum Anfang">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
             
             <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn sync-play-btn">
                 <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
-            
-            <button id="btnStepNext" class="glass-btn h-10 px-3" title="Ein Frame vorwÃ¤rts">&gt;|</button>
 
             <div class="speed-container">
                 <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select">
@@ -455,6 +475,14 @@
             <button onclick="toggleLock()" id="lockBtn" class="glass-btn h-10 px-3">
                 <svg id="lockIconOpen" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
             </button>
+        </div>
+        
+        <!-- Globales Jog-Wheel für Sync-Lock Modus -->
+        <div id="globalJogContainer" class="global-jog-container" style="display: none;">
+            <div class="jog-ticks global-jog-ticks">
+                <div id="ticksGlobal" class="tick-container"></div>
+            </div>
+            <div class="jog-overlay" id="jogGlobal"></div>
         </div>
     </div>
 
@@ -568,20 +596,34 @@
                     
                 case 'ArrowRight':
                     e.preventDefault();
+                    v1.pause();
                     if (compareMode) {
-                        syncStep(1/30);
+                        v2.pause();
+                        const targetTime = v1.currentTime + 1/30;
+                        seekInstant(v1, targetTime);
+                        if (isLocked) {
+                            seekInstant(v2, targetTime + syncDiff);
+                        } else {
+                            seekInstant(v2, v2.currentTime + 1/30);
+                        }
                     } else {
-                        v1.pause();
                         seekInstant(v1, v1.currentTime + 1/30);
                     }
                     break;
                     
                 case 'ArrowLeft':
                     e.preventDefault();
+                    v1.pause();
                     if (compareMode) {
-                        syncStep(-1/30);
+                        v2.pause();
+                        const targetTime = v1.currentTime - 1/30;
+                        seekInstant(v1, targetTime);
+                        if (isLocked) {
+                            seekInstant(v2, targetTime + syncDiff);
+                        } else {
+                            seekInstant(v2, v2.currentTime - 1/30);
+                        }
                     } else {
-                        v1.pause();
                         seekInstant(v1, v1.currentTime - 1/30);
                     }
                     break;
@@ -589,32 +631,20 @@
         });
 
         // =================================================================
-        // ZUM ANFANG BUTTON - SYNC-LOCK RESPEKTIERT
+        // ZUM ANFANG BUTTON
         // =================================================================
         function goToStart() {
             v1.pause();
             v2.pause();
             
             if (isLocked) {
-                // Berechne, wie weit wir zurückspulen können ohne Sync zu brechen
-                // syncDiff = v2.currentTime - v1.currentTime (positiv = v2 ist weiter)
-                
-                let targetTime1, targetTime2;
-                
                 if (syncDiff >= 0) {
-                    // v2 ist weiter vorne oder gleich
-                    // v1 kann zu 0 gehen, v2 geht zu syncDiff
-                    targetTime1 = 0;
-                    targetTime2 = syncDiff;
+                    seekInstant(v1, 0 - syncDiff);
+                    seekInstant(v2, 0);
                 } else {
-                    // v1 ist weiter vorne (syncDiff ist negativ)
-                    // v2 kann zu 0 gehen, v1 geht zu |syncDiff|
-                    targetTime1 = Math.abs(syncDiff);
-                    targetTime2 = 0;
+                    seekInstant(v1, 0);
+                    seekInstant(v2, 0 + syncDiff);
                 }
-                
-                seekInstant(v1, targetTime1);
-                seekInstant(v2, targetTime2);
                 
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'go_to_start_synced' });
@@ -630,46 +660,23 @@
                 }
             }
         }
-        
-        // =================================================================
-        // INDIVIDUELLE STEUERUNGSFUNKTIONEN
-        // =================================================================
-        function stepIndividual(playerId, direction) {
-            if (isLocked) return; // Im Sync-Lock-Modus deaktiviert
-            
-            const video = playerId === 1 ? v1 : v2;
-            video.pause();
-            seekInstant(video, video.currentTime + (direction * (1/30)));
-            
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'step_individual', data: { player: playerId, direction } });
-            }
-        }
-        
-        function goToStartIndividual(playerId) {
-            if (isLocked) return; // Im Sync-Lock-Modus deaktiviert
+
+        // Go-to-Start für einzelnen Player
+        function goToStartSingle(playerId) {
+            if (isLocked) return; // Im Sync-Lock nicht verfügbar
             
             const video = playerId === 1 ? v1 : v2;
             video.pause();
             seekInstant(video, 0);
             
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'go_to_start_individual', data: { player: playerId } });
+            if (playerId === 1) {
+                offset1 = 0;
+            } else {
+                offset2 = 0;
             }
-        }
-        
-        // =================================================================
-        // UPDATE INDIVIDUELLE CONTROLS SICHTBARKEIT
-        // =================================================================
-        function updateIndividualControlsVisibility() {
-            const p1Controls = document.getElementById('player1Controls');
-            const p2Controls = document.getElementById('player2Controls');
             
-            if (p1Controls) {
-                p1Controls.style.display = isLocked ? 'none' : 'flex';
-            }
-            if (p2Controls) {
-                p2Controls.style.display = isLocked ? 'none' : 'flex';
+            if (typeof window.va !== 'undefined') {
+                window.va('event', { name: 'go_to_start_single', data: { player: playerId } });
             }
         }
 
@@ -717,6 +724,7 @@
         }
         generateTicks('ticks1');
         generateTicks('ticks2');
+        generateTicks('ticksGlobal');
 
         function loadVideo(event, target) {
             const file = event.target.files[0];
@@ -768,50 +776,6 @@
             if (Math.abs(video.currentTime - target) < 0.001) return;
             video.currentTime = target;
         }
-        
-        // =================================================================
-        // OPTIMIERTES SCRUBBING: FastSeek während Bewegung, präziser Seek am Ende
-        // =================================================================
-        function seekFast(video, time) {
-            if (video.readyState < 2) return;
-            const target = Math.max(0, Math.min(time, video.duration || Infinity));
-            if (Math.abs(video.currentTime - target) < 0.001) return;
-            
-            // FastSeek für flüssiges Scrubbing (nicht frame-genau, aber schnell)
-            if (video.fastSeek && typeof video.fastSeek === 'function') {
-                video.fastSeek(target);
-            } else {
-                video.currentTime = target;
-            }
-        }
-        
-        function seekPrecise(video, time) {
-            if (video.readyState < 2) return;
-            const target = Math.max(0, Math.min(time, video.duration || Infinity));
-            // Präziser Seek für exaktes Frame
-            video.currentTime = target;
-        }
-        
-        // Throttle-Funktion: max. 60 Seeks pro Sekunde
-        function createThrottle(fn, limit) {
-            let lastCall = 0;
-            let pendingCall = null;
-            return function(...args) {
-                const now = Date.now();
-                if (now - lastCall >= limit) {
-                    lastCall = now;
-                    fn.apply(this, args);
-                } else {
-                    // Speichere letzten Aufruf für finale Ausführung
-                    pendingCall = { args, context: this };
-                }
-            };
-        }
-        
-        // Throttled FastSeek (max. ~60fps = 16ms)
-        const throttledSeekFast = createThrottle((video, time) => {
-            seekFast(video, time);
-        }, 16);
 
         function updateUI() {
             const syncUIElements = () => {
@@ -844,6 +808,7 @@
         function toggleLock() {
             isLocked = !isLocked;
             const btn = document.getElementById('lockBtn');
+            const globalJog = document.getElementById('globalJogContainer');
 
             if (isLocked) {
                 syncDiff = v2.currentTime - v1.currentTime;
@@ -851,19 +816,24 @@
                 if (v1.paused) v2.pause(); else v2.play();
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
                 
+                // Aktiviere Sync-Lock UI
+                document.body.classList.add('sync-locked');
+                globalJog.style.display = 'block';
+                
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_enabled' });
                 }
             } else {
                 btn.classList.remove('active');
                 
+                // Deaktiviere Sync-Lock UI
+                document.body.classList.remove('sync-locked');
+                globalJog.style.display = 'none';
+                
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_disabled' });
                 }
             }
-            
-            // Aktualisiere Sichtbarkeit der individuellen Controls
-            updateIndividualControlsVisibility();
             updateUI();
         }
 
@@ -900,38 +870,8 @@
             else { v1.play(); v2.play(); }
         }
 
-        function syncStep(val) {
-            v1.pause(); v2.pause();
-            const targetTime = v1.currentTime + val;
-            seekInstant(v1, targetTime);
-            if (isLocked) {
-                requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-            } else {
-                seekInstant(v2, v2.currentTime + val);
-            }
-        }
-
-        function setupHoldStep(btnId, step) {
-            const btn = document.getElementById(btnId);
-            let interval = null;
-            let timeout = null;
-            const handleStart = (e) => { 
-                e.preventDefault(); 
-                syncStep(step); 
-                timeout = setTimeout(() => { interval = setInterval(() => syncStep(step * 0.5), 40); }, 400); 
-            };
-            const stop = () => { clearTimeout(timeout); clearInterval(interval); };
-            btn.addEventListener('touchstart', handleStart);
-            btn.addEventListener('mousedown', handleStart);
-            btn.addEventListener('touchend', stop);
-            btn.addEventListener('mouseup', stop);
-            btn.addEventListener('mouseleave', stop);
-        }
-        setupHoldStep('btnStepPrev', -1/30);
-        setupHoldStep('btnStepNext', 1/30);
-
         // =================================================================
-        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH - OPTIMIERT
+        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH
         // =================================================================
         function setupZoomScrub(jogId, videoId, zoomId, ticksId) {
             const jog = document.getElementById(jogId);
@@ -953,45 +893,22 @@
                 velocity: 0, 
                 inertiaActive: false, 
                 tickPos: 0,
-                isMouseDragging: false,
-                lastSeekTime: 0,  // Für Throttling
-                finalTargetTime: 0  // Für präzisen End-Seek
+                isMouseDragging: false
             };
 
             const updateTransform = () => {
                 zoomWrapper.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
             };
-            
-            // Throttled Scrub-Funktion
-            const performScrub = (deltaX) => {
-                const now = Date.now();
-                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                state.finalTargetTime = targetTime;
-                
-                // Throttle: max alle 33ms (≈30fps, passend für 30fps Videos)
-                if (now - state.lastSeekTime >= 33) {
-                    state.lastSeekTime = now;
-                    
-                    if (isLocked) {
-                        seekFast(v1, targetTime);
-                        seekFast(v2, targetTime + syncDiff);
-                    } else {
-                        seekFast(video, targetTime);
-                    }
-                }
-                
-                state.tickPos += deltaX;
-                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-            };
-            
-            // Präziser Seek beim Loslassen
-            const finalizeScrub = () => {
-                if (state.finalTargetTime !== 0) {
-                    if (isLocked) {
-                        seekPrecise(v1, state.finalTargetTime);
-                        requestAnimationFrame(() => seekPrecise(v2, state.finalTargetTime + syncDiff));
-                    } else {
-                        seekPrecise(video, state.finalTargetTime);
+
+            // Aktualisiere globales Jog-Wheel wenn Sync-Lock aktiv
+            const updateGlobalTicks = (deltaX) => {
+                if (isLocked) {
+                    const globalTicks = document.getElementById('ticksGlobal');
+                    if (globalTicks) {
+                        const currentTransform = globalTicks.style.transform || 'translateX(0px)';
+                        const match = currentTransform.match(/translateX\(([^)]+)px\)/);
+                        const currentPos = match ? parseFloat(match[1]) : 0;
+                        globalTicks.style.transform = `translateX(${(currentPos + deltaX) % 200}px)`;
                     }
                 }
             };
@@ -1000,22 +917,19 @@
                 if (!state.inertiaActive) return;
                 if (Math.abs(state.velocity) > 0.001) {
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
-                    state.finalTargetTime = targetTime;
-                    
                     if (isLocked) { 
-                        seekFast(v1, targetTime); 
-                        seekFast(v2, targetTime + syncDiff);
+                        seekInstant(v1, targetTime); 
+                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
                     } else { 
-                        seekFast(video, targetTime); 
+                        seekInstant(video, targetTime); 
                     }
                     state.velocity *= 0.95; 
-                    state.tickPos += (state.velocity * 1000); 
+                    state.tickPos += (state.velocity * 1000);
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    updateGlobalTicks(state.velocity * 1000);
                     requestAnimationFrame(applyInertia);
                 } else { 
-                    state.inertiaActive = false;
-                    // Präziser End-Seek nach Inertia
-                    finalizeScrub();
+                    state.inertiaActive = false; 
                 }
             };
 
@@ -1027,7 +941,6 @@
                 state.lastX = e.clientX;
                 state.lastY = e.clientY;
                 state.velocity = 0;
-                state.finalTargetTime = 0;
                 v1.pause(); 
                 v2.pause();
                 e.preventDefault();
@@ -1040,18 +953,23 @@
                 state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.clientX;
                 
-                performScrub(deltaX);
+                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                if (isLocked) { 
+                    seekInstant(v1, targetTime); 
+                    requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                } else { 
+                    seekInstant(video, targetTime); 
+                }
+                
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                updateGlobalTicks(deltaX);
             });
 
             document.addEventListener('mouseup', () => {
-                if (state.isMouseDragging) {
-                    if (Math.abs(state.velocity) > 0.001) {
-                        state.inertiaActive = true;
-                        applyInertia();
-                    } else {
-                        // Präziser End-Seek ohne Inertia
-                        finalizeScrub();
-                    }
+                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
+                    state.inertiaActive = true;
+                    applyInertia();
                 }
                 state.isMouseDragging = false;
                 state.isDragging = false;
@@ -1059,8 +977,7 @@
 
             // TOUCH EVENTS
             jog.addEventListener('touchstart', (e) => {
-                state.inertiaActive = false;
-                state.finalTargetTime = 0;
+                state.inertiaActive = false; 
                 if (e.touches.length === 2) {
                     state.initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                     state.initialScale = state.scale;
@@ -1100,20 +1017,23 @@
                     const deltaX = e.touches[0].clientX - state.lastX;
                     state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                     state.lastX = e.touches[0].clientX;
-                    
-                    performScrub(deltaX);
+                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                    if (isLocked) { 
+                        seekInstant(v1, targetTime); 
+                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
+                    } else { 
+                        seekInstant(video, targetTime); 
+                    }
+                    state.tickPos += deltaX;
+                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    updateGlobalTicks(deltaX);
                 }
             }, {passive: false});
 
             jog.addEventListener('touchend', () => { 
-                if (state.isDragging) {
-                    if (Math.abs(state.velocity) > 0.001) { 
-                        state.inertiaActive = true; 
-                        applyInertia(); 
-                    } else {
-                        // Präziser End-Seek ohne Inertia
-                        finalizeScrub();
-                    }
+                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
+                    state.inertiaActive = true; 
+                    applyInertia(); 
                 }
                 state.isDragging = false; 
             });
@@ -1132,6 +1052,108 @@
 
         setupZoomScrub('jog1', 'v1', 'zoom1', 'ticks1');
         setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2');
+
+        // =================================================================
+        // GLOBALES JOG-WHEEL FÜR SYNC-LOCK MODUS
+        // =================================================================
+        function setupGlobalJog() {
+            const jog = document.getElementById('jogGlobal');
+            const ticks = document.getElementById('ticksGlobal');
+            
+            let state = { 
+                isDragging: false, 
+                lastX: 0, 
+                velocity: 0, 
+                inertiaActive: false, 
+                tickPos: 0,
+                isMouseDragging: false
+            };
+
+            const applyInertia = () => {
+                if (!state.inertiaActive) return;
+                if (Math.abs(state.velocity) > 0.001) {
+                    const targetTime = v1.currentTime + state.velocity;
+                    seekInstant(v1, targetTime); 
+                    seekInstant(v2, targetTime + syncDiff);
+                    state.velocity *= 0.95; 
+                    state.tickPos += (state.velocity * 1000); 
+                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    requestAnimationFrame(applyInertia);
+                } else { 
+                    state.inertiaActive = false; 
+                }
+            };
+
+            // MAUS DRAG
+            jog.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                state.isMouseDragging = true;
+                state.isDragging = true;
+                state.lastX = e.clientX;
+                state.velocity = 0;
+                v1.pause(); 
+                v2.pause();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!state.isMouseDragging) return;
+                
+                const deltaX = e.clientX - state.lastX;
+                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
+                state.lastX = e.clientX;
+                
+                const targetTime = v1.currentTime + (deltaX * 0.01);
+                seekInstant(v1, targetTime); 
+                seekInstant(v2, targetTime + syncDiff);
+                
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
+                    state.inertiaActive = true;
+                    applyInertia();
+                }
+                state.isMouseDragging = false;
+                state.isDragging = false;
+            });
+
+            // TOUCH EVENTS
+            jog.addEventListener('touchstart', (e) => {
+                state.inertiaActive = false; 
+                state.isDragging = true; 
+                v1.pause(); 
+                v2.pause();
+                state.lastX = e.touches[0].clientX; 
+                state.velocity = 0;
+            }, {passive: false});
+
+            jog.addEventListener('touchmove', (e) => {
+                if (!state.isDragging) return;
+                const deltaX = e.touches[0].clientX - state.lastX;
+                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
+                state.lastX = e.touches[0].clientX;
+                
+                const targetTime = v1.currentTime + (deltaX * 0.01);
+                seekInstant(v1, targetTime); 
+                seekInstant(v2, targetTime + syncDiff);
+                
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+            }, {passive: false});
+
+            jog.addEventListener('touchend', () => { 
+                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
+                    state.inertiaActive = true; 
+                    applyInertia(); 
+                }
+                state.isDragging = false; 
+            });
+        }
+        
+        setupGlobalJog();
     </script>
 </body>
 </html>

@@ -603,12 +603,6 @@
 
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls1">
-                <!-- Step backward one frame (hold for slow reverse playback) -->
-                <button id="frameBackBtn1" class="frame-step-btn" title="Step backward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-                    </svg>
-                </button>
                 <!-- Jump to start of video - double triangle icon -->
                 <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Go to start">
                     <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
@@ -617,10 +611,16 @@
                         <path d="M14 12l5 4V8z"/>
                     </svg>
                 </button>
-                <!-- Step forward one frame (hold for slow forward playback) -->
+                <!-- Step backward one frame (hold for slow reverse playback) - left arrow -->
+                <button id="frameBackBtn1" class="frame-step-btn" title="Step backward (hold for slow play)">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <!-- Step forward one frame (hold for slow forward playback) - right arrow -->
                 <button id="frameForwardBtn1" class="frame-step-btn" title="Step forward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                 </button>
                 <!-- Playback speed selector -->
@@ -684,12 +684,6 @@
 
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls2">
-                <!-- Step backward one frame -->
-                <button id="frameBackBtn2" class="frame-step-btn" title="Step backward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-                    </svg>
-                </button>
                 <!-- Jump to start of video - double triangle icon -->
                 <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Go to start">
                     <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
@@ -698,10 +692,16 @@
                         <path d="M14 12l5 4V8z"/>
                     </svg>
                 </button>
-                <!-- Step forward one frame -->
+                <!-- Step backward one frame - left arrow -->
+                <button id="frameBackBtn2" class="frame-step-btn" title="Step backward (hold for slow play)">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <!-- Step forward one frame - right arrow -->
                 <button id="frameForwardBtn2" class="frame-step-btn" title="Step forward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                 </button>
                 <!-- Playback speed selector -->
@@ -757,16 +757,16 @@
 
             <!-- Synced frame step controls (for dual mode) -->
             <div class="sync-frame-controls">
-                <!-- Step both videos backward one frame -->
+                <!-- Step both videos backward one frame - left arrow -->
                 <button id="syncFrameBackBtn" class="frame-step-btn" title="Step backward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
                     </svg>
                 </button>
-                <!-- Step both videos forward one frame -->
+                <!-- Step both videos forward one frame - right arrow -->
                 <button id="syncFrameForwardBtn" class="frame-step-btn" title="Step forward (hold for slow play)">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                 </button>
             </div>

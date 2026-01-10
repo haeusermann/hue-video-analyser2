@@ -1,46 +1,92 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <!-- ================================================================= -->
+    <!-- META TAGS AND DOCUMENT CONFIGURATION                              -->
+    <!-- ================================================================= -->
     <meta charset="UTF-8">
+    <!-- Viewport settings for mobile optimization:
+         - width=device-width: Match viewport to device width
+         - initial-scale=1.0: No initial zoom
+         - maximum-scale=1.0: Prevent user zoom (important for video apps)
+         - user-scalable=no: Disable pinch zoom on viewport
+         - viewport-fit=cover: Extend content into safe areas (notch, etc.) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
+    <!-- ================================================================= -->
+    <!-- APPLE PWA (Progressive Web App) CONFIGURATION                     -->
+    <!-- These meta tags enable iOS home screen app functionality          -->
+    <!-- ================================================================= -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- Status bar style: black-translucent allows content under status bar -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MotionAnalyzer">
     
+    <!-- Touch icon for iOS home screen -->
     <link rel="apple-touch-icon" href="Logo.png">
+    <!-- Web App Manifest for PWA installation -->
     <link rel="manifest" href="manifest.json">
 
+    <!-- ================================================================= -->
+    <!-- ANDROID/CHROME PWA CONFIGURATION                                  -->
+    <!-- ================================================================= -->
     <meta name="mobile-web-app-capable" content="yes">
+    <!-- Theme color affects browser UI and status bar color -->
     <meta name="theme-color" content="#000000">
 
     <title>Video Analyser</title>
 
-    <!-- VERCEL WEB ANALYTICS -->
+    <!-- ================================================================= -->
+    <!-- VERCEL WEB ANALYTICS INTEGRATION                                  -->
+    <!-- Tracks user interactions and app usage for analytics              -->
+    <!-- ================================================================= -->
     <script>
+        // Initialize Vercel Analytics queue before script loads
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
     
+    <!-- Tailwind CSS compiled output -->
     <link rel="stylesheet" href="./dist/output.css">
+    
+    <!-- ================================================================= -->
+    <!-- CUSTOM STYLES                                                     -->
+    <!-- ================================================================= -->
     <style>
+        /* ============================================================= */
+        /* CSS CUSTOM PROPERTIES (Variables)                             */
+        /* ============================================================= */
         :root {
+            /* Safe area inset for devices with notches/home indicators */
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
         }
         
+        /* ============================================================= */
+        /* BODY STYLES - Base layout and mobile optimization             */
+        /* ============================================================= */
         body {
+            /* Prevent pull-to-refresh and overscroll effects */
             overscroll-behavior-y: contain;
+            /* Disable default touch actions for custom gesture handling */
             touch-action: none;
+            /* Dark background for video app aesthetic */
             background-color: #000;
+            /* Prevent text selection for better touch UX */
             user-select: none;
             -webkit-user-select: none;
+            /* Dynamic viewport height - accounts for mobile browser chrome */
             height: 100dvh; 
+            /* Flexbox layout for vertical stacking */
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            /* System font stack for optimal rendering */
             font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
         }
 
+        /* ============================================================= */
+        /* SPLASH SCREEN - Loading screen with logo                      */
+        /* ============================================================= */
         #splash-screen {
             position: fixed;
             top: 0;
@@ -51,10 +97,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* High z-index to cover all content during load */
             z-index: 9999;
+            /* Smooth fade-out transition */
             transition: opacity 0.5s ease-out, visibility 0.5s;
         }
 
+        /* Splash screen logo sizing */
         #splash-screen img {
             max-width: 250px;
             width: 60%;
@@ -62,31 +111,39 @@
             object-fit: contain;
         }
 
+        /* Hidden state for splash screen fade-out */
         #splash-screen.hidden {
             opacity: 0;
             visibility: hidden;
         }
         
+        /* ============================================================= */
+        /* WORKBENCH - Main video grid container                         */
+        /* ============================================================= */
         #workbench {
             display: grid;
+            /* Small gap between video players in dual mode */
             gap: 2px;
+            /* Fill remaining vertical space */
             flex: 1;
+            /* Allow content to shrink */
             min-height: 0;
+            /* Dark background visible in gaps */
             background-color: #111;
         }
 
-        /* KORRIGIERT: Single-Mode zeigt nur ein Video */
+        /* Single video mode - full width single column */
         .mode-single { 
             grid-template-columns: 1fr; 
         }
         
-        /* KORRIGIERT: Dual-Mode responsive Layout */
+        /* Dual video mode - stacked vertically by default (portrait) */
         .mode-dual { 
             grid-template-columns: 1fr;
             grid-template-rows: 1fr 1fr;
         }
         
-        /* Querformat: nebeneinander */
+        /* Landscape orientation: side-by-side layout for dual mode */
         @media (min-aspect-ratio: 1/1) {
             .mode-dual { 
                 grid-template-columns: 1fr 1fr;
@@ -94,6 +151,9 @@
             }
         }
 
+        /* ============================================================= */
+        /* VIDEO CONTAINER - Wrapper for each video player               */
+        /* ============================================================= */
         .video-container {
             position: relative;
             background: #000;
@@ -104,28 +164,37 @@
             height: 100%;
         }
 
+        /* Zoom wrapper - enables pinch-to-zoom and pan functionality */
         .zoom-wrapper {
             width: 100%;
             height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
+            /* Optimize for transform animations */
             will-change: transform;
         }
 
+        /* Video element styling */
         video {
             max-width: 100%;
             max-height: 100%;
+            /* Maintain aspect ratio while fitting container */
             object-fit: contain;
+            /* Disable pointer events - handled by overlay */
             pointer-events: none;
         }
 
+        /* ============================================================= */
+        /* JOG WHEEL VISUALIZATION - Timeline scrubbing indicator        */
+        /* ============================================================= */
         .jog-ticks {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             height: 40px;
+            /* Non-interactive - visual feedback only */
             pointer-events: none;
             z-index: 15;
             display: flex;
@@ -133,21 +202,36 @@
             justify-content: center;
             overflow: hidden;
             opacity: 0.6;
+            /* Fade edges for smooth visual appearance */
             mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
         }
 
+        /* Container for tick marks */
         .tick-container {
             display: flex;
             gap: 12px;
             height: 100%;
             align-items: flex-end;
             transform: translateX(0px);
+            /* Optimize for transform animations */
             will-change: transform;
         }
 
-        .tick { width: 1px; height: 12px; background: rgba(255,255,255,0.4); }
-        .tick.major { height: 20px; background: #3b82f6; width: 2px; }
+        /* Individual tick mark styling */
+        .tick { 
+            width: 1px; 
+            height: 12px; 
+            background: rgba(255,255,255,0.4); 
+        }
+        
+        /* Major tick marks (every 10th) - taller and colored */
+        .tick.major { 
+            height: 20px; 
+            background: #3b82f6; 
+            width: 2px; 
+        }
 
+        /* Jog overlay - invisible touch/click target for scrubbing */
         .jog-overlay {
             position: absolute;
             top: 0;
@@ -155,19 +239,34 @@
             right: 0;
             bottom: 0;
             z-index: 5;
+            /* Enable custom touch gesture handling */
             touch-action: none;
         }
 
-        /* Globales Jog-Wheel für Sync-Lock Modus */
-        .global-jog-container {
-            position: relative;
-            width: 100%;
-            height: 50px;
-            margin-top: 8px;
+        /* ============================================================= */
+        /* GLOBAL JOG WHEEL - Overlay for sync-lock mode                 */
+        /* Positioned as overlay at bottom of video frames               */
+        /* ============================================================= */
+        .global-jog-overlay-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            z-index: 20;
+            display: none;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+        }
+
+        /* Show global jog overlay when sync-lock is active */
+        .sync-locked .global-jog-overlay-container {
+            display: block !important;
         }
 
         .global-jog-ticks {
-            position: relative;
+            position: absolute;
+            bottom: 10px;
+            left: 0;
             width: 100%;
             height: 40px;
             pointer-events: none;
@@ -175,31 +274,39 @@
             align-items: flex-end;
             justify-content: center;
             overflow: hidden;
-            opacity: 0.8;
+            opacity: 0.9;
+            /* Wide fade gradient for overlay appearance */
             mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
         }
 
-        .global-jog-container .jog-overlay {
+        .global-jog-overlay-container .jog-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            z-index: 10;
+            z-index: 25;
             touch-action: none;
         }
 
-        /* Verstecke individuelle Player-Controls wenn Sync-Lock aktiv */
+        /* ============================================================= */
+        /* SYNC-LOCK MODE UI ADJUSTMENTS                                 */
+        /* Hide individual player controls when videos are synced        */
+        /* ============================================================= */
         .sync-locked #controls1,
         .sync-locked #controls2 {
             display: none !important;
         }
 
+        /* Hide individual jog wheels when using global sync jog */
         .sync-locked #jogTicks1,
         .sync-locked #jogTicks2 {
             display: none !important;
         }
 
+        /* ============================================================= */
+        /* UI OVERLAY - Container for control buttons                    */
+        /* ============================================================= */
         .ui-overlay {
             position: absolute;
             z-index: 30;
@@ -211,13 +318,21 @@
             padding: 10px;
         }
 
+        /* Positioning classes for UI overlays */
         .top-left { top: 0; left: 0; }
         .top-right { top: 0; right: 0; }
         .top-center { top: 0; left: 50%; transform: translateX(-50%); }
         .bottom-right { bottom: 0; right: 0; }
+        .bottom-left { bottom: 0; left: 0; }
+        .bottom-center { bottom: 0; left: 50%; transform: translateX(-50%); }
 
+        /* ============================================================= */
+        /* GLASS BUTTON - Frosted glass effect button style              */
+        /* ============================================================= */
         .glass-btn {
+            /* Semi-transparent dark background */
             background: rgba(15, 23, 42, 0.8);
+            /* Frosted glass blur effect */
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
@@ -233,10 +348,64 @@
             cursor: pointer;
         }
 
-        .glass-btn:active { transform: scale(0.95); background: rgba(30, 41, 59, 0.9); }
-        .glass-btn.active { background: #3b82f6; color: white; border-color: #60a5fa; }
-        .glass-btn.disabled { opacity: 0.3; pointer-events: none; }
+        /* Active/pressed state for glass buttons */
+        .glass-btn:active { 
+            transform: scale(0.95); 
+            background: rgba(30, 41, 59, 0.9); 
+        }
+        
+        /* Toggle active state - blue highlight */
+        .glass-btn.active { 
+            background: #3b82f6; 
+            color: white; 
+            border-color: #60a5fa; 
+        }
+        
+        /* Disabled state - faded and non-interactive */
+        .glass-btn.disabled { 
+            opacity: 0.3; 
+            pointer-events: none; 
+        }
 
+        /* ============================================================= */
+        /* FRAME STEP BUTTONS - Compact buttons for frame navigation     */
+        /* ============================================================= */
+        .frame-step-btn {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 8px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            /* Prevent text selection during hold */
+            user-select: none;
+            -webkit-user-select: none;
+            /* Highlight color when held */
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
+        }
+
+        /* Pressed state for frame step buttons */
+        .frame-step-btn:active { 
+            transform: scale(0.92); 
+            background: rgba(59, 130, 246, 0.6); 
+            border-color: #60a5fa;
+        }
+
+        /* Playing state when button is held */
+        .frame-step-btn.playing {
+            background: rgba(59, 130, 246, 0.7);
+            border-color: #60a5fa;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        }
+
+        /* ============================================================= */
+        /* TIME BADGE - Current time display                             */
+        /* ============================================================= */
         .time-badge-container {
             display: flex;
             align-items: center;
@@ -244,11 +413,13 @@
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(8px);
             padding: 4px 12px;
+            /* Rounded bottom corners - attaches to top edge */
             border-radius: 0 0 12px 12px;
             border: 1px solid rgba(59, 130, 246, 0.2);
             border-top: none;
         }
 
+        /* Time display text styling */
         .time-badge {
             font-family: ui-monospace, monospace;
             font-size: 16px;
@@ -256,6 +427,7 @@
             color: #60a5fa;
         }
 
+        /* Timer reset button */
         .reset-btn {
             background: rgba(59, 130, 246, 0.15);
             border: 1px solid rgba(59, 130, 246, 0.3);
@@ -266,6 +438,9 @@
             cursor: pointer;
         }
 
+        /* ============================================================= */
+        /* GLASS SELECT - Styled dropdown for speed selection            */
+        /* ============================================================= */
         select.glass-select {
             background: rgba(15, 23, 42, 0.8);
             color: #60a5fa;
@@ -275,29 +450,35 @@
             padding: 4px 8px;
             border-radius: 8px;
             outline: none;
+            /* Remove default dropdown arrow */
             appearance: none;
             cursor: pointer;
         }
 
-        /* Versteckte File-Input Buttons */
+        /* Hidden file input - triggered by visible button */
         .hidden-file-input {
             display: none;
         }
 
-        /* WICHTIG: Player 2 verstecken im Single-Mode */
+        /* Player 2 hidden in single mode */
         #player2.hidden {
             display: none !important;
         }
 
-        /* Sync Panel Styles (Fallback fÃ¼r fehlende Tailwind-Klassen) */
+        /* ============================================================= */
+        /* SYNC PANEL - Control bar for dual video mode                  */
+        /* ============================================================= */
         #syncPanel {
             background-color: #000;
             border-top: 1px solid #1e293b;
             padding: 0.75rem;
+            /* Prevent shrinking */
             flex-shrink: 0;
+            /* Account for home indicator on modern phones */
             padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
         }
 
+        /* Sync panel content layout */
         #syncPanel > div {
             display: flex;
             flex-direction: row;
@@ -309,21 +490,25 @@
             margin: 0 auto;
         }
 
+        /* Sync play button - larger and highlighted */
         .sync-play-btn {
             background: rgba(37, 99, 235, 0.8);
             height: 40px;
             width: 48px;
         }
 
+        /* Utility height class */
         .h-10 {
             height: 40px;
         }
 
+        /* Utility padding class */
         .px-3 {
             padding-left: 12px;
             padding-right: 12px;
         }
 
+        /* Speed selector container in sync panel */
         .speed-container {
             display: flex;
             align-items: center;
@@ -335,45 +520,80 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        /* ============================================================= */
+        /* SYNC FRAME CONTROLS - Frame step buttons in sync panel        */
+        /* ============================================================= */
+        .sync-frame-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin: 0 8px;
+        }
+
+        /* ============================================================= */
+        /* RESPONSIVE ADJUSTMENTS                                        */
+        /* ============================================================= */
         @media (min-width: 641px) {
-            /* Placeholder fÃ¼r zukÃ¼nftige Desktop-Styles */
+            /* Larger buttons on tablet/desktop */
+            .frame-step-btn {
+                padding: 8px 12px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Splash Screen -->
+    <!-- ================================================================= -->
+    <!-- SPLASH SCREEN                                                     -->
+    <!-- Displays logo during initial app load, fades out after 2 seconds  -->
+    <!-- ================================================================= -->
     <div id="splash-screen">
-        <img src="Logo.png" alt="HÃ¤usermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
+        <img src="Logo.png" alt="Häusermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
         <h1 id="splash-text" class="text-white text-2xl font-bold tracking-widest hidden">Video Analyser</h1>
     </div>
 
+    <!-- ================================================================= -->
+    <!-- MAIN WORKBENCH - Video player grid                                -->
+    <!-- Contains one or two video players depending on mode               -->
+    <!-- ================================================================= -->
     <main id="workbench" class="mode-single">
-        <!-- PLAYER 1 -->
+        
+        <!-- ============================================================= -->
+        <!-- PLAYER 1 - Primary video player                               -->
+        <!-- Always visible in both single and dual modes                  -->
+        <!-- ============================================================= -->
         <div id="player1" class="video-container">
+            
+            <!-- Top Left Controls: Mode toggle and fullscreen -->
             <div class="ui-overlay top-left" style="flex-direction: column;">
+                <!-- Toggle between single and dual video mode -->
                 <button onclick="toggleCompareMode()" id="compareBtn" class="glass-btn shadow-xl min-w-[70px]">
                     <span id="compareBtnText">DUAL</span>
                 </button>
-                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Vollbild umschalten">
+                <!-- Fullscreen toggle button with dynamic icon -->
+                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Toggle fullscreen">
+                    <!-- Expand icon (shown when not fullscreen) -->
                     <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
                     </svg>
+                    <!-- Compress icon (shown when in fullscreen) -->
                     <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
                         <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
                     </svg>
                 </button>
             </div>
 
+            <!-- Top Center: Time display with reset button -->
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time1">00:00.00</div>
-                    <button onclick="resetTimer(1)" class="reset-btn" title="Timer zurÃ¼cksetzen">
+                    <button onclick="resetTimer(1)" class="reset-btn" title="Reset timer">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
             </div>
 
+            <!-- Top Right: Video file selector -->
             <div class="ui-overlay top-right">
                 <button onclick="document.getElementById('fileInput1').click()" class="glass-btn shadow-lg">
                     VIDEO
@@ -381,43 +601,80 @@
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
             </div>
 
+            <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls1">
-                <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Zum Anfang">
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                <!-- Step backward one frame (hold for slow reverse playback) -->
+                <button id="frameBackBtn1" class="frame-step-btn" title="Step backward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    </svg>
                 </button>
+                <!-- Jump to start of video - double triangle icon -->
+                <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Go to start">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6z"/>
+                        <path d="M9 12l5 4V8z"/>
+                        <path d="M14 12l5 4V8z"/>
+                    </svg>
+                </button>
+                <!-- Step forward one frame (hold for slow forward playback) -->
+                <button id="frameForwardBtn1" class="frame-step-btn" title="Step forward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    </svg>
+                </button>
+                <!-- Playback speed selector -->
                 <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
                     <option value="0.125">0.12x</option>
                     <option value="0.25">0.25x</option>
                     <option value="0.5">0.50x</option>
                     <option value="1.0" selected>1.00x</option>
                 </select>
+                <!-- Play/Pause toggle button -->
                 <button onclick="togglePlay('v1')" id="playBtn1" class="glass-btn bg-blue-600/80 w-12 h-12 rounded-full">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
             </div>
 
+            <!-- Video zoom wrapper - enables pinch-to-zoom functionality -->
             <div id="zoom1" class="zoom-wrapper">
                 <video id="v1" playsinline preload="auto" muted></video>
             </div>
             
+            <!-- Jog wheel tick marks visualization -->
             <div class="jog-ticks" id="jogTicks1">
                 <div id="ticks1" class="tick-container"></div>
             </div>
             
+            <!-- Invisible overlay for touch/mouse jog wheel interaction -->
             <div class="jog-overlay" id="jog1"></div>
+
+            <!-- Global jog wheel overlay for sync-lock mode (Player 1) -->
+            <div class="global-jog-overlay-container" id="globalJogOverlay1">
+                <div class="global-jog-ticks">
+                    <div id="ticksGlobal1" class="tick-container"></div>
+                </div>
+                <div class="jog-overlay" id="jogGlobal1"></div>
+            </div>
         </div>
 
-        <!-- PLAYER 2 - nur im Dual-Mode sichtbar -->
+        <!-- ============================================================= -->
+        <!-- PLAYER 2 - Secondary video player (dual mode only)            -->
+        <!-- Hidden by default, shown when dual mode is activated          -->
+        <!-- ============================================================= -->
         <div id="player2" class="video-container" style="display: none;">
+            
+            <!-- Top Center: Time display with reset button -->
             <div class="ui-overlay top-center">
                 <div class="time-badge-container">
                     <div class="time-badge" id="time2">00:00.00</div>
-                    <button onclick="resetTimer(2)" class="reset-btn" title="Timer zurÃ¼cksetzen">
+                    <button onclick="resetTimer(2)" class="reset-btn" title="Reset timer">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m0 0H15"></path></svg>
                     </button>
                 </div>
             </div>
 
+            <!-- Top Right: Video file selector -->
             <div class="ui-overlay top-right">
                 <button onclick="document.getElementById('fileInput2').click()" class="glass-btn shadow-lg">
                     VIDEO
@@ -425,44 +682,101 @@
                 <input type="file" accept="video/*" id="fileInput2" class="hidden-file-input" onchange="loadVideo(event, 'compare')">
             </div>
 
+            <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls2">
-                <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Zum Anfang">
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                <!-- Step backward one frame -->
+                <button id="frameBackBtn2" class="frame-step-btn" title="Step backward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    </svg>
                 </button>
+                <!-- Jump to start of video - double triangle icon -->
+                <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Go to start">
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6z"/>
+                        <path d="M9 12l5 4V8z"/>
+                        <path d="M14 12l5 4V8z"/>
+                    </svg>
+                </button>
+                <!-- Step forward one frame -->
+                <button id="frameForwardBtn2" class="frame-step-btn" title="Step forward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    </svg>
+                </button>
+                <!-- Playback speed selector -->
                 <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
                     <option value="0.125">0.12x</option>
                     <option value="0.25">0.25x</option>
                     <option value="0.5">0.50x</option>
                     <option value="1.0" selected>1.00x</option>
                 </select>
+                <!-- Play/Pause toggle button -->
                 <button onclick="togglePlay('v2')" id="playBtn2" class="glass-btn w-12 h-10 rounded-full">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
             </div>
 
+            <!-- Video zoom wrapper -->
             <div id="zoom2" class="zoom-wrapper">
                 <video id="v2" playsinline preload="auto" muted></video>
             </div>
 
+            <!-- Jog wheel tick marks visualization -->
             <div class="jog-ticks" id="jogTicks2">
                 <div id="ticks2" class="tick-container"></div>
             </div>
 
+            <!-- Invisible overlay for touch/mouse jog wheel interaction -->
             <div class="jog-overlay" id="jog2"></div>
+
+            <!-- Global jog wheel overlay for sync-lock mode (Player 2) -->
+            <div class="global-jog-overlay-container" id="globalJogOverlay2">
+                <div class="global-jog-ticks">
+                    <div id="ticksGlobal2" class="tick-container"></div>
+                </div>
+                <div class="jog-overlay" id="jogGlobal2"></div>
+            </div>
         </div>
     </main>
 
-    <!-- SYNC PANEL - nur im Dual-Mode sichtbar -->
+    <!-- ================================================================= -->
+    <!-- SYNC PANEL - Control bar for dual video mode                      -->
+    <!-- Contains synchronized playback controls                           -->
+    <!-- ================================================================= -->
     <div id="syncPanel" style="display: none;">
         <div>
-            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-3" title="Zum Anfang">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            <!-- Jump to start button (synced) - double triangle icon -->
+            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-3" title="Go to start">
+                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6z"/>
+                    <path d="M9 12l5 4V8z"/>
+                    <path d="M14 12l5 4V8z"/>
+                </svg>
             </button>
+
+            <!-- Synced frame step controls (for dual mode) -->
+            <div class="sync-frame-controls">
+                <!-- Step both videos backward one frame -->
+                <button id="syncFrameBackBtn" class="frame-step-btn" title="Step backward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    </svg>
+                </button>
+                <!-- Step both videos forward one frame -->
+                <button id="syncFrameForwardBtn" class="frame-step-btn" title="Step forward (hold for slow play)">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 18h2V6h-2zM6 18l8.5-6L6 6z"/>
+                    </svg>
+                </button>
+            </div>
             
+            <!-- Sync play/pause button -->
             <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn sync-play-btn">
                 <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
 
+            <!-- Global speed selector -->
             <div class="speed-container">
                 <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select">
                     <option value="0.125">0.12x</option>
@@ -472,29 +786,28 @@
                 </select>
             </div>
             
+            <!-- Sync lock toggle button -->
             <button onclick="toggleLock()" id="lockBtn" class="glass-btn h-10 px-3">
                 <svg id="lockIconOpen" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
             </button>
         </div>
-        
-        <!-- Globales Jog-Wheel für Sync-Lock Modus -->
-        <div id="globalJogContainer" class="global-jog-container" style="display: none;">
-            <div class="jog-ticks global-jog-ticks">
-                <div id="ticksGlobal" class="tick-container"></div>
-            </div>
-            <div class="jog-overlay" id="jogGlobal"></div>
-        </div>
     </div>
 
+    <!-- ================================================================= -->
+    <!-- JAVASCRIPT - Application Logic                                    -->
+    <!-- ================================================================= -->
     <script>
         // =================================================================
-        // VERCEL ANALYTICS
+        // VERCEL ANALYTICS INITIALIZATION
+        // Tracks app launches and user interactions for analytics
         // =================================================================
         
         window.addEventListener('load', () => {
+            // Detect if app is running as installed PWA
             const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                          window.navigator.standalone === true;
             
+            // Track PWA launches separately from browser visits
             if (isPWA) {
                 console.log("App launched as PWA");
                 if (typeof window.va !== 'undefined') {
@@ -502,29 +815,40 @@
                 }
             }
 
+            // Hide splash screen after 2 second delay
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
                 if (splash) {
                     splash.classList.add('hidden');
+                    // Remove from DOM after fade animation completes
                     setTimeout(() => splash.remove(), 600);
                 }
             }, 2000);
 
-            // Vollbild-Icon initial setzen
+            // Set initial fullscreen icon state
             updateFullscreenIcon();
         });
 
         // =================================================================
-        // VOLLBILD FUNKTIONEN
+        // FULLSCREEN FUNCTIONALITY
+        // Handles entering and exiting fullscreen mode
         // =================================================================
+        
+        /**
+         * Toggle fullscreen mode on/off
+         * Uses standard Fullscreen API with webkit fallback for Safari
+         */
         function toggleFullscreen() {
+            // Check if currently in fullscreen
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                // Enter fullscreen - try standard API first, then webkit
                 if (document.documentElement.requestFullscreen) {
                     document.documentElement.requestFullscreen();
                 } else if (document.documentElement.webkitRequestFullscreen) {
                     document.documentElement.webkitRequestFullscreen();
                 }
             } else {
+                // Exit fullscreen
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
@@ -533,6 +857,10 @@
             }
         }
 
+        /**
+         * Update fullscreen button icon based on current state
+         * Shows expand icon when not fullscreen, compress icon when fullscreen
+         */
         function updateFullscreenIcon() {
             const expandIcon = document.getElementById('fullscreenIconExpand');
             const compressIcon = document.getElementById('fullscreenIconCompress');
@@ -544,80 +872,118 @@
             }
         }
 
+        // Listen for fullscreen changes (user may exit via Escape key)
         document.addEventListener('fullscreenchange', updateFullscreenIcon);
         document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
 
+        // =================================================================
+        // GLOBAL VARIABLES AND STATE
+        // =================================================================
+        
+        // Video element references
         const v1 = document.getElementById('v1');
         const v2 = document.getElementById('v2');
         const workbench = document.getElementById('workbench');
         
-        let compareMode = false;
-        let isLocked = false;
-        let offset1 = 0;
-        let offset2 = 0;
-        let syncDiff = 0;
+        // Application state
+        let compareMode = false;  // True when dual video mode is active
+        let isLocked = false;     // True when videos are sync-locked
+        let offset1 = 0;          // Timer offset for Player 1 (for relative timing)
+        let offset2 = 0;          // Timer offset for Player 2
+        let syncDiff = 0;         // Time difference between videos when sync-locked
         
-        // 25% hÃ¶here Scroll-SensitivitÃ¤t
+        // Scrub sensitivity: Controls how fast video scrubs when dragging
+        // Higher value = faster scrubbing, 0.0625 = 25% increase from default
         const SCRUB_SENSITIVITY = 0.0625;
+        
+        // Slow playback speed when holding frame step buttons (0.25x)
+        const HOLD_PLAY_SPEED = 0.25;
 
+        // =================================================================
+        // VIDEO METADATA HANDLERS
+        // Initialize video properties when video file is loaded
+        // =================================================================
+        
         v1.addEventListener('loadedmetadata', () => {
+            // Set initial playback rate from speed selector
             v1.playbackRate = parseFloat(document.getElementById('speed1').value);
+            // Track video load event for analytics
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'video_loaded', data: { player: 1 } });
             }
         });
         
         v2.addEventListener('loadedmetadata', () => {
+            // Set initial playback rate from speed selector
             v2.playbackRate = parseFloat(document.getElementById('speed2').value);
+            // Track video load event for analytics
             if (typeof window.va !== 'undefined') {
                 window.va('event', { name: 'video_loaded', data: { player: 2 } });
             }
         });
 
         // =================================================================
-        // TASTATURSTEUERUNG FÃœR DESKTOP
+        // KEYBOARD CONTROLS (Desktop)
+        // Arrow keys for frame stepping, Space for play/pause
         // =================================================================
+        
         document.addEventListener('keydown', (e) => {
+            // Skip keyboard handling on touch devices
             if ('ontouchstart' in window) return;
             
             switch(e.code) {
                 case 'Space':
+                    // Prevent page scroll
                     e.preventDefault();
+                    
+                    // Handle play/pause based on current mode
                     if (compareMode && isLocked) {
+                        // Sync-locked mode: toggle both videos together
                         toggleSyncPlay();
                     } else if (compareMode) {
+                        // Dual mode without sync: toggle both independently
                         const isPlaying = !v1.paused || !v2.paused;
                         if (isPlaying) { v1.pause(); v2.pause(); } 
                         else { v1.play(); v2.play(); }
                     } else {
+                        // Single mode: toggle Player 1 only
                         togglePlay('v1');
                     }
                     break;
                     
                 case 'ArrowRight':
+                    // Step forward one frame (1/30th of a second)
                     e.preventDefault();
                     v1.pause();
+                    
                     if (compareMode) {
                         v2.pause();
                         const targetTime = v1.currentTime + 1/30;
                         seekInstant(v1, targetTime);
+                        
                         if (isLocked) {
+                            // Maintain sync offset when locked
                             seekInstant(v2, targetTime + syncDiff);
                         } else {
+                            // Step Player 2 independently
                             seekInstant(v2, v2.currentTime + 1/30);
                         }
                     } else {
+                        // Single mode: step Player 1 only
                         seekInstant(v1, v1.currentTime + 1/30);
                     }
                     break;
                     
                 case 'ArrowLeft':
+                    // Step backward one frame
                     e.preventDefault();
                     v1.pause();
+                    
                     if (compareMode) {
                         v2.pause();
                         const targetTime = v1.currentTime - 1/30;
                         seekInstant(v1, targetTime);
+                        
                         if (isLocked) {
                             seekInstant(v2, targetTime + syncDiff);
                         } else {
@@ -631,17 +997,26 @@
         });
 
         // =================================================================
-        // ZUM ANFANG BUTTON
+        // GO TO START FUNCTIONS
+        // Jump to beginning of video(s)
         // =================================================================
+        
+        /**
+         * Jump both videos to start position
+         * Respects sync offset when locked
+         */
         function goToStart() {
             v1.pause();
             v2.pause();
             
             if (isLocked) {
+                // When sync-locked, calculate start positions that maintain sync
                 if (syncDiff >= 0) {
+                    // Video 2 is ahead, so start V1 at negative offset (will clamp to 0)
                     seekInstant(v1, 0 - syncDiff);
                     seekInstant(v2, 0);
                 } else {
+                    // Video 1 is ahead
                     seekInstant(v1, 0);
                     seekInstant(v2, 0 + syncDiff);
                 }
@@ -650,6 +1025,7 @@
                     window.va('event', { name: 'go_to_start_synced' });
                 }
             } else {
+                // Not locked: just go to 0 for both
                 seekInstant(v1, 0);
                 if (compareMode) {
                     seekInstant(v2, 0);
@@ -661,14 +1037,19 @@
             }
         }
 
-        // Go-to-Start für einzelnen Player
+        /**
+         * Jump single player to start position
+         * @param {number} playerId - 1 or 2 for which player to reset
+         */
         function goToStartSingle(playerId) {
-            if (isLocked) return; // Im Sync-Lock nicht verfügbar
+            // Disabled when sync-locked
+            if (isLocked) return;
             
             const video = playerId === 1 ? v1 : v2;
             video.pause();
             seekInstant(video, 0);
             
+            // Reset timer offset for this player
             if (playerId === 1) {
                 offset1 = 0;
             } else {
@@ -681,28 +1062,39 @@
         }
 
         // =================================================================
-        // TOGGLE COMPARE MODE - KORRIGIERT
+        // COMPARE MODE TOGGLE
+        // Switch between single and dual video display
         // =================================================================
+        
+        /**
+         * Toggle between single and dual video mode
+         * Updates UI, shows/hides Player 2 and sync panel
+         */
         function toggleCompareMode() {
             compareMode = !compareMode;
 
             if (compareMode) {
-                // Wechsel zu Dual-Mode
+                // Switch to dual mode
                 document.getElementById('player2').style.display = 'flex';
                 document.getElementById('syncPanel').style.display = 'block';
                 document.getElementById('compareBtnText').innerText = 'SINGLE';
                 workbench.className = 'mode-dual';
+                // Sync playback speeds
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
             } else {
-                // Wechsel zu Single-Mode
+                // Switch to single mode
                 document.getElementById('player2').style.display = 'none';
                 document.getElementById('syncPanel').style.display = 'none';
                 document.getElementById('compareBtnText').innerText = 'DUAL';
                 workbench.className = 'mode-single';
+                // Reset sync lock state
                 isLocked = false;
                 
-                // Sync Lock Button zurÃ¼cksetzen
+                // Reset sync lock button appearance
                 document.getElementById('lockBtn').classList.remove('active');
+                
+                // Hide global jog overlays
+                document.body.classList.remove('sync-locked');
             }
 
             if (typeof window.va !== 'undefined') {
@@ -713,30 +1105,60 @@
             }
         }
 
+        // =================================================================
+        // JOG WHEEL TICK GENERATION
+        // Creates visual tick marks for jog wheel display
+        // =================================================================
+        
+        /**
+         * Generate tick marks for jog wheel visualization
+         * @param {string} containerId - ID of container element to populate
+         */
         function generateTicks(containerId) {
             const container = document.getElementById(containerId);
+            if (!container) return;
+            
             container.innerHTML = '';
-            for(let i=0; i<100; i++) {
+            
+            // Create 100 ticks, every 10th is a major (larger) tick
+            for(let i = 0; i < 100; i++) {
                 const tick = document.createElement('div');
                 tick.className = i % 10 === 0 ? 'tick major' : 'tick';
                 container.appendChild(tick);
             }
         }
+        
+        // Initialize all jog wheel tick containers
         generateTicks('ticks1');
         generateTicks('ticks2');
-        generateTicks('ticksGlobal');
+        generateTicks('ticksGlobal1');
+        generateTicks('ticksGlobal2');
 
+        // =================================================================
+        // VIDEO FILE LOADING
+        // Handle video file selection and loading
+        // =================================================================
+        
+        /**
+         * Load video file into player
+         * @param {Event} event - File input change event
+         * @param {string} target - 'main' for Player 1, 'compare' for Player 2
+         */
         function loadVideo(event, target) {
             const file = event.target.files[0];
             if (!file) return;
+            
+            // Create blob URL for local file
             const url = URL.createObjectURL(file);
             
             if (target === 'main') { 
                 v1.src = url; 
+                // Reset speed selector to default
                 const speedSelect = document.getElementById('speed1');
                 speedSelect.value = "1.0";
                 v1.playbackRate = 1.0; 
                 v1.load(); 
+                // Reset timer offset
                 offset1 = 0; 
             } else { 
                 v2.src = url; 
@@ -748,6 +1170,16 @@
             }
         }
 
+        // =================================================================
+        // TIMER FUNCTIONS
+        // Reset and format time display
+        // =================================================================
+        
+        /**
+         * Reset timer for specified player
+         * Sets current position as new zero point
+         * @param {number} id - Player ID (1 or 2)
+         */
         function resetTimer(id) {
             if (id === 1) {
                 offset1 = v1.currentTime;
@@ -762,6 +1194,12 @@
             }
         }
 
+        /**
+         * Format seconds as MM:SS.CC (minutes:seconds.centiseconds)
+         * @param {number} seconds - Time in seconds
+         * @param {number} offset - Offset to subtract (for relative timing)
+         * @returns {string} Formatted time string
+         */
         function formatTime(seconds, offset = 0) {
             const diff = Math.max(0, seconds - offset);
             const m = Math.floor(diff / 60);
@@ -770,55 +1208,104 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
         }
 
+        // =================================================================
+        // VIDEO SEEKING
+        // Precise frame-accurate seeking
+        // =================================================================
+        
+        /**
+         * Seek video to specific time instantly
+         * Clamps time to valid range and skips tiny movements
+         * @param {HTMLVideoElement} video - Video element to seek
+         * @param {number} time - Target time in seconds
+         */
         function seekInstant(video, time) {
+            // Wait for video to be ready
             if (video.readyState < 2) return;
+            
+            // Clamp to valid range
             const target = Math.max(0, Math.min(time, video.duration || Infinity));
+            
+            // Skip if change is negligible (prevents jitter)
             if (Math.abs(video.currentTime - target) < 0.001) return;
+            
             video.currentTime = target;
         }
 
+        // =================================================================
+        // UI UPDATE FUNCTION
+        // Synchronize UI elements with video state
+        // =================================================================
+        
+        /**
+         * Update all UI elements to reflect current video state
+         * Called on every time update for smooth feedback
+         */
         function updateUI() {
             const syncUIElements = () => {
+                // Update time displays
                 document.getElementById('time1').innerText = formatTime(v1.currentTime, offset1);
                 document.getElementById('time2').innerText = formatTime(v2.currentTime, offset2);
 
+                // SVG icons for play and pause states
                 const playIcon = '<svg width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
                 const pauseIcon = '<svg width="24" height="24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
 
+                // Update Player 1 play button icon
                 document.getElementById('playBtn1').innerHTML = v1.paused ? playIcon : pauseIcon;
+                
                 if (compareMode) {
+                    // Update Player 2 and sync button icons
                     document.getElementById('playBtn2').innerHTML = v2.paused ? playIcon : pauseIcon;
                     document.getElementById('syncPlayBtn').innerHTML = (v1.paused && v2.paused) ? playIcon : pauseIcon;
+                    
+                    // Disable individual play buttons when sync-locked
                     document.getElementById('playBtn1').classList.toggle('disabled', isLocked);
                     document.getElementById('playBtn2').classList.toggle('disabled', isLocked);
                 }
             };
 
+            // Use requestVideoFrameCallback for precise timing if available
             if ('requestVideoFrameCallback' in v1) {
                 v1.requestVideoFrameCallback(syncUIElements);
                 if (compareMode) v2.requestVideoFrameCallback(syncUIElements);
             } else {
+                // Fallback to requestAnimationFrame
                 requestAnimationFrame(syncUIElements);
             }
         }
 
+        // Trigger UI update on video time changes
         v1.ontimeupdate = updateUI;
         v2.ontimeupdate = updateUI;
 
+        // =================================================================
+        // SYNC LOCK FUNCTIONALITY
+        // Lock videos together with fixed time offset
+        // =================================================================
+        
+        /**
+         * Toggle sync lock between videos
+         * When locked, videos maintain their relative time offset
+         */
         function toggleLock() {
             isLocked = !isLocked;
             const btn = document.getElementById('lockBtn');
-            const globalJog = document.getElementById('globalJogContainer');
 
             if (isLocked) {
+                // Calculate and store time difference between videos
                 syncDiff = v2.currentTime - v1.currentTime;
                 btn.classList.add('active');
-                if (v1.paused) v2.pause(); else v2.play();
+                
+                // Sync play state
+                if (v1.paused) v2.pause(); 
+                else v2.play();
+                
+                // Apply global speed to both videos
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
                 
-                // Aktiviere Sync-Lock UI
+                // Activate sync-lock UI mode (shows global jog overlay)
                 document.body.classList.add('sync-locked');
-                globalJog.style.display = 'block';
                 
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_enabled' });
@@ -826,9 +1313,8 @@
             } else {
                 btn.classList.remove('active');
                 
-                // Deaktiviere Sync-Lock UI
+                // Deactivate sync-lock UI mode
                 document.body.classList.remove('sync-locked');
-                globalJog.style.display = 'none';
                 
                 if (typeof window.va !== 'undefined') {
                     window.va('event', { name: 'sync_lock_disabled' });
@@ -837,10 +1323,20 @@
             updateUI();
         }
 
+        // =================================================================
+        // PLAYBACK SPEED CONTROLS
+        // =================================================================
+        
+        /**
+         * Set playback speed for both videos (global control)
+         * @param {string} val - Speed value as string (e.g., "0.5")
+         */
         function setGlobalSpeed(val) {
             const rate = parseFloat(val);
             v1.playbackRate = rate;
             v2.playbackRate = rate;
+            
+            // Update all speed selectors to match
             document.getElementById('speed1').value = val;
             document.getElementById('speed2').value = val;
             document.getElementById('globalSpeed').value = val;
@@ -850,97 +1346,566 @@
             }
         }
 
+        /**
+         * Set playback speed for individual video
+         * @param {string} id - Video element ID ('v1' or 'v2')
+         * @param {string} val - Speed value as string
+         */
         function setSpeed(id, val) { 
             const v = document.getElementById(id);
             if (v) v.playbackRate = parseFloat(val);
+            
+            // Update global speed selector when not locked
             if (compareMode && !isLocked) {
                 document.getElementById('globalSpeed').value = val;
             }
         }
 
+        // =================================================================
+        // PLAY/PAUSE CONTROLS
+        // =================================================================
+        
+        /**
+         * Toggle play/pause for single video
+         * @param {string} id - Video element ID
+         */
         function togglePlay(id) {
+            // Disabled when sync-locked
             if (isLocked) return;
+            
             const v = document.getElementById(id);
             v.paused ? v.play() : v.pause();
         }
 
+        /**
+         * Toggle play/pause for both videos simultaneously
+         */
         function toggleSyncPlay() {
             const isPlaying = !v1.paused || !v2.paused;
-            if (isPlaying) { v1.pause(); v2.pause(); } 
-            else { v1.play(); v2.play(); }
+            if (isPlaying) { 
+                v1.pause(); 
+                v2.pause(); 
+            } else { 
+                v1.play(); 
+                v2.play(); 
+            }
         }
 
         // =================================================================
-        // ZOOM, SCRUB & DRAG MIT MAUS UND TOUCH
+        // FRAME STEP BUTTON FUNCTIONALITY
+        // Single frame stepping and hold-to-play at slow speed
         // =================================================================
+        
+        /**
+         * Setup frame step buttons for a video player
+         * Handles both click (single frame) and hold (slow playback)
+         * @param {string} backBtnId - ID of backward step button
+         * @param {string} forwardBtnId - ID of forward step button
+         * @param {HTMLVideoElement} video - Video element to control
+         * @param {number} playerId - Player ID for analytics
+         */
+        function setupFrameStepButtons(backBtnId, forwardBtnId, video, playerId) {
+            const backBtn = document.getElementById(backBtnId);
+            const forwardBtn = document.getElementById(forwardBtnId);
+            
+            if (!backBtn || !forwardBtn) return;
+            
+            // Track button hold state
+            let holdTimeout = null;
+            let isHolding = false;
+            let originalSpeed = 1.0;
+            
+            /**
+             * Start slow reverse playback when button is held
+             */
+            function startReversePlay() {
+                isHolding = true;
+                backBtn.classList.add('playing');
+                originalSpeed = video.playbackRate;
+                
+                // HTML5 video doesn't support negative playback rate
+                // So we simulate reverse by stepping backward in intervals
+                video.pause();
+                
+                // Step backward continuously at ~30fps equivalent
+                const reverseInterval = setInterval(() => {
+                    if (!isHolding) {
+                        clearInterval(reverseInterval);
+                        return;
+                    }
+                    // Step back ~1/30th second per frame at 0.25x speed
+                    const stepAmount = (1/30) * HOLD_PLAY_SPEED;
+                    seekInstant(video, video.currentTime - stepAmount);
+                }, 1000/30);
+                
+                // Store interval for cleanup
+                backBtn.dataset.intervalId = reverseInterval;
+            }
+            
+            /**
+             * Start slow forward playback when button is held
+             */
+            function startForwardPlay() {
+                isHolding = true;
+                forwardBtn.classList.add('playing');
+                originalSpeed = video.playbackRate;
+                video.playbackRate = HOLD_PLAY_SPEED;
+                video.play();
+            }
+            
+            /**
+             * Stop playback and restore original state
+             */
+            function stopPlay(btn) {
+                isHolding = false;
+                btn.classList.remove('playing');
+                
+                // Clear any pending hold timeout
+                if (holdTimeout) {
+                    clearTimeout(holdTimeout);
+                    holdTimeout = null;
+                }
+                
+                // Clear reverse playback interval if exists
+                if (btn.dataset.intervalId) {
+                    clearInterval(parseInt(btn.dataset.intervalId));
+                    delete btn.dataset.intervalId;
+                }
+                
+                video.pause();
+                video.playbackRate = originalSpeed;
+            }
+            
+            /**
+             * Handle single frame step backward
+             */
+            function stepBackward() {
+                video.pause();
+                seekInstant(video, video.currentTime - 1/30);
+            }
+            
+            /**
+             * Handle single frame step forward
+             */
+            function stepForward() {
+                video.pause();
+                seekInstant(video, video.currentTime + 1/30);
+            }
+            
+            // ----- BACKWARD BUTTON EVENT HANDLERS -----
+            
+            // Mouse events for backward button
+            backBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                // Start hold detection timer (150ms threshold)
+                holdTimeout = setTimeout(() => startReversePlay(), 150);
+            });
+            
+            backBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    // Was a quick tap - step single frame
+                    clearTimeout(holdTimeout);
+                    stepBackward();
+                }
+                stopPlay(backBtn);
+            });
+            
+            backBtn.addEventListener('mouseleave', () => {
+                if (isHolding) stopPlay(backBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            // Touch events for backward button
+            backBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startReversePlay(), 150);
+            }, { passive: false });
+            
+            backBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepBackward();
+                }
+                stopPlay(backBtn);
+            });
+            
+            backBtn.addEventListener('touchcancel', () => {
+                stopPlay(backBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            // ----- FORWARD BUTTON EVENT HANDLERS -----
+            
+            // Mouse events for forward button
+            forwardBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startForwardPlay(), 150);
+            });
+            
+            forwardBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepForward();
+                }
+                stopPlay(forwardBtn);
+            });
+            
+            forwardBtn.addEventListener('mouseleave', () => {
+                if (isHolding) stopPlay(forwardBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            // Touch events for forward button
+            forwardBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startForwardPlay(), 150);
+            }, { passive: false });
+            
+            forwardBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepForward();
+                }
+                stopPlay(forwardBtn);
+            });
+            
+            forwardBtn.addEventListener('touchcancel', () => {
+                stopPlay(forwardBtn);
+                clearTimeout(holdTimeout);
+            });
+        }
+        
+        // Initialize frame step buttons for both players
+        setupFrameStepButtons('frameBackBtn1', 'frameForwardBtn1', v1, 1);
+        setupFrameStepButtons('frameBackBtn2', 'frameForwardBtn2', v2, 2);
+
+        // =================================================================
+        // SYNC FRAME STEP BUTTONS (Dual Mode)
+        // Control both videos simultaneously
+        // =================================================================
+        
+        /**
+         * Setup synchronized frame step buttons for dual mode
+         * Steps both videos together, respecting sync lock offset
+         */
+        function setupSyncFrameStepButtons() {
+            const backBtn = document.getElementById('syncFrameBackBtn');
+            const forwardBtn = document.getElementById('syncFrameForwardBtn');
+            
+            if (!backBtn || !forwardBtn) return;
+            
+            let holdTimeout = null;
+            let isHolding = false;
+            let originalSpeed1 = 1.0;
+            let originalSpeed2 = 1.0;
+            
+            /**
+             * Start slow reverse playback for both videos
+             */
+            function startSyncReversePlay() {
+                isHolding = true;
+                backBtn.classList.add('playing');
+                originalSpeed1 = v1.playbackRate;
+                originalSpeed2 = v2.playbackRate;
+                
+                v1.pause();
+                v2.pause();
+                
+                // Simulate reverse playback by stepping both videos backward
+                const reverseInterval = setInterval(() => {
+                    if (!isHolding) {
+                        clearInterval(reverseInterval);
+                        return;
+                    }
+                    const stepAmount = (1/30) * HOLD_PLAY_SPEED;
+                    const targetTime = v1.currentTime - stepAmount;
+                    seekInstant(v1, targetTime);
+                    
+                    if (isLocked) {
+                        // Maintain sync offset
+                        seekInstant(v2, targetTime + syncDiff);
+                    } else {
+                        seekInstant(v2, v2.currentTime - stepAmount);
+                    }
+                }, 1000/30);
+                
+                backBtn.dataset.intervalId = reverseInterval;
+            }
+            
+            /**
+             * Start slow forward playback for both videos
+             */
+            function startSyncForwardPlay() {
+                isHolding = true;
+                forwardBtn.classList.add('playing');
+                originalSpeed1 = v1.playbackRate;
+                originalSpeed2 = v2.playbackRate;
+                
+                v1.playbackRate = HOLD_PLAY_SPEED;
+                v2.playbackRate = HOLD_PLAY_SPEED;
+                v1.play();
+                v2.play();
+            }
+            
+            /**
+             * Stop synchronized playback
+             */
+            function stopSyncPlay(btn) {
+                isHolding = false;
+                btn.classList.remove('playing');
+                
+                if (holdTimeout) {
+                    clearTimeout(holdTimeout);
+                    holdTimeout = null;
+                }
+                
+                if (btn.dataset.intervalId) {
+                    clearInterval(parseInt(btn.dataset.intervalId));
+                    delete btn.dataset.intervalId;
+                }
+                
+                v1.pause();
+                v2.pause();
+                v1.playbackRate = originalSpeed1;
+                v2.playbackRate = originalSpeed2;
+            }
+            
+            /**
+             * Step both videos backward one frame
+             */
+            function stepSyncBackward() {
+                v1.pause();
+                v2.pause();
+                
+                const targetTime = v1.currentTime - 1/30;
+                seekInstant(v1, targetTime);
+                
+                if (isLocked) {
+                    seekInstant(v2, targetTime + syncDiff);
+                } else {
+                    seekInstant(v2, v2.currentTime - 1/30);
+                }
+            }
+            
+            /**
+             * Step both videos forward one frame
+             */
+            function stepSyncForward() {
+                v1.pause();
+                v2.pause();
+                
+                const targetTime = v1.currentTime + 1/30;
+                seekInstant(v1, targetTime);
+                
+                if (isLocked) {
+                    seekInstant(v2, targetTime + syncDiff);
+                } else {
+                    seekInstant(v2, v2.currentTime + 1/30);
+                }
+            }
+            
+            // ----- BACKWARD BUTTON EVENTS -----
+            
+            backBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startSyncReversePlay(), 150);
+            });
+            
+            backBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepSyncBackward();
+                }
+                stopSyncPlay(backBtn);
+            });
+            
+            backBtn.addEventListener('mouseleave', () => {
+                if (isHolding) stopSyncPlay(backBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            backBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startSyncReversePlay(), 150);
+            }, { passive: false });
+            
+            backBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepSyncBackward();
+                }
+                stopSyncPlay(backBtn);
+            });
+            
+            backBtn.addEventListener('touchcancel', () => {
+                stopSyncPlay(backBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            // ----- FORWARD BUTTON EVENTS -----
+            
+            forwardBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startSyncForwardPlay(), 150);
+            });
+            
+            forwardBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepSyncForward();
+                }
+                stopSyncPlay(forwardBtn);
+            });
+            
+            forwardBtn.addEventListener('mouseleave', () => {
+                if (isHolding) stopSyncPlay(forwardBtn);
+                clearTimeout(holdTimeout);
+            });
+            
+            forwardBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                holdTimeout = setTimeout(() => startSyncForwardPlay(), 150);
+            }, { passive: false });
+            
+            forwardBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (!isHolding) {
+                    clearTimeout(holdTimeout);
+                    stepSyncForward();
+                }
+                stopSyncPlay(forwardBtn);
+            });
+            
+            forwardBtn.addEventListener('touchcancel', () => {
+                stopSyncPlay(forwardBtn);
+                clearTimeout(holdTimeout);
+            });
+        }
+        
+        // Initialize sync frame step buttons
+        setupSyncFrameStepButtons();
+
+        // =================================================================
+        // ZOOM, SCRUB & DRAG FUNCTIONALITY
+        // Pinch-to-zoom, pan, and jog wheel scrubbing
+        // =================================================================
+        
+        /**
+         * Setup zoom and scrub functionality for a video player
+         * Handles:
+         * - Pinch-to-zoom (two-finger)
+         * - Pan when zoomed (two-finger drag)
+         * - Timeline scrubbing (one-finger horizontal drag)
+         * - Inertia scrolling
+         * @param {string} jogId - ID of jog overlay element
+         * @param {string} videoId - ID of video element
+         * @param {string} zoomId - ID of zoom wrapper element
+         * @param {string} ticksId - ID of tick container element
+         */
         function setupZoomScrub(jogId, videoId, zoomId, ticksId) {
             const jog = document.getElementById(jogId);
             const video = document.getElementById(videoId);
             const zoomWrapper = document.getElementById(zoomId);
             const ticks = document.getElementById(ticksId);
             
+            // Zoom and scrub state
             let state = { 
-                isDragging: false, 
-                lastX: 0, 
-                lastY: 0,
-                scale: 1, 
-                posX: 0, 
-                posY: 0, 
-                initialDist: 0, 
-                initialScale: 1, 
-                lastTouchX: 0, 
-                lastTouchY: 0,
-                velocity: 0, 
-                inertiaActive: false, 
-                tickPos: 0,
-                isMouseDragging: false
+                isDragging: false,       // Currently dragging for scrub
+                lastX: 0,                // Last X position for delta calculation
+                lastY: 0,                // Last Y position for delta calculation
+                scale: 1,                // Current zoom level (1 = no zoom)
+                posX: 0,                 // Pan X offset
+                posY: 0,                 // Pan Y offset
+                initialDist: 0,          // Initial distance between fingers (for pinch)
+                initialScale: 1,         // Scale at start of pinch gesture
+                lastTouchX: 0,           // Last touch center X
+                lastTouchY: 0,           // Last touch center Y
+                velocity: 0,             // Scrub velocity for inertia
+                inertiaActive: false,    // Whether inertia is currently animating
+                tickPos: 0,              // Tick animation position
+                isMouseDragging: false   // Mouse drag state (vs touch)
             };
 
+            /**
+             * Apply current transform (zoom + pan) to wrapper
+             */
             const updateTransform = () => {
                 zoomWrapper.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
             };
 
-            // Aktualisiere globales Jog-Wheel wenn Sync-Lock aktiv
+            /**
+             * Update global jog wheel ticks when sync-locked
+             * Keeps both players' jog wheels visually synchronized
+             * @param {number} deltaX - Horizontal movement delta
+             */
             const updateGlobalTicks = (deltaX) => {
                 if (isLocked) {
-                    const globalTicks = document.getElementById('ticksGlobal');
-                    if (globalTicks) {
-                        const currentTransform = globalTicks.style.transform || 'translateX(0px)';
-                        const match = currentTransform.match(/translateX\(([^)]+)px\)/);
-                        const currentPos = match ? parseFloat(match[1]) : 0;
-                        globalTicks.style.transform = `translateX(${(currentPos + deltaX) % 200}px)`;
-                    }
+                    // Update both global jog overlays
+                    ['ticksGlobal1', 'ticksGlobal2'].forEach(id => {
+                        const globalTicks = document.getElementById(id);
+                        if (globalTicks) {
+                            const currentTransform = globalTicks.style.transform || 'translateX(0px)';
+                            const match = currentTransform.match(/translateX\(([^)]+)px\)/);
+                            const currentPos = match ? parseFloat(match[1]) : 0;
+                            globalTicks.style.transform = `translateX(${(currentPos + deltaX) % 200}px)`;
+                        }
+                    });
                 }
             };
 
+            /**
+             * Apply inertia scrolling after drag release
+             * Gradually decays velocity for smooth stop
+             */
             const applyInertia = () => {
                 if (!state.inertiaActive) return;
+                
+                // Continue while velocity is significant
                 if (Math.abs(state.velocity) > 0.001) {
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
+                    
                     if (isLocked) { 
                         seekInstant(v1, targetTime); 
+                        // Use requestAnimationFrame for smooth sync
                         requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
                     } else { 
                         seekInstant(video, targetTime); 
                     }
+                    
+                    // Apply friction
                     state.velocity *= 0.95; 
+                    
+                    // Animate tick marks
                     state.tickPos += (state.velocity * 1000);
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                     updateGlobalTicks(state.velocity * 1000);
+                    
                     requestAnimationFrame(applyInertia);
                 } else { 
                     state.inertiaActive = false; 
                 }
             };
 
-            // MAUS DRAG & DROP
+            // ----- MOUSE DRAG EVENTS -----
+            
             jog.addEventListener('mousedown', (e) => {
+                // Only handle left mouse button
                 if (e.button !== 0) return;
+                
                 state.isMouseDragging = true;
                 state.isDragging = true;
                 state.lastX = e.clientX;
                 state.lastY = e.clientY;
                 state.velocity = 0;
+                
+                // Pause videos during scrub
                 v1.pause(); 
                 v2.pause();
                 e.preventDefault();
@@ -950,9 +1915,11 @@
                 if (!state.isMouseDragging) return;
                 
                 const deltaX = e.clientX - state.lastX;
+                // Calculate velocity for inertia
                 state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.clientX;
                 
+                // Scrub video based on drag distance
                 const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
                 if (isLocked) { 
                     seekInstant(v1, targetTime); 
@@ -961,12 +1928,14 @@
                     seekInstant(video, targetTime); 
                 }
                 
+                // Animate tick marks
                 state.tickPos += deltaX;
                 ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                 updateGlobalTicks(deltaX);
             });
 
             document.addEventListener('mouseup', () => {
+                // Trigger inertia if releasing with velocity
                 if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
                     state.inertiaActive = true;
                     applyInertia();
@@ -975,12 +1944,20 @@
                 state.isDragging = false;
             });
 
-            // TOUCH EVENTS
+            // ----- TOUCH EVENTS -----
+            
             jog.addEventListener('touchstart', (e) => {
+                // Stop any ongoing inertia
                 state.inertiaActive = false; 
+                
                 if (e.touches.length === 2) {
-                    state.initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    // Two-finger gesture: pinch zoom
+                    state.initialDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX, 
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
                     state.initialScale = state.scale;
+                    // Track center point of two fingers
                     state.lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     state.lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                     
@@ -988,6 +1965,7 @@
                         window.va('event', { name: 'zoom_started' });
                     }
                 } else {
+                    // Single-finger: timeline scrub
                     state.isDragging = true; 
                     v1.pause(); 
                     v2.pause();
@@ -998,25 +1976,42 @@
 
             jog.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 2) {
+                    // Pinch zoom handling
                     e.preventDefault();
-                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    
+                    // Calculate new distance between fingers
+                    const d = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX, 
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    
+                    // Calculate new center point
                     const curX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     const curY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    
+                    // Calculate new scale (clamped between 1x and 5x)
                     state.scale = Math.max(1, Math.min(state.initialScale * (d / state.initialDist), 5));
+                    
+                    // Pan to follow finger center when zoomed
                     if (state.scale > 1) { 
                         state.posX += (curX - state.lastTouchX); 
                         state.posY += (curY - state.lastTouchY); 
                     } else { 
+                        // Reset pan when not zoomed
                         state.posX = 0; 
                         state.posY = 0; 
                     }
+                    
                     state.lastTouchX = curX; 
                     state.lastTouchY = curY;
                     updateTransform();
+                    
                 } else if (state.isDragging) {
+                    // Single-finger scrub
                     const deltaX = e.touches[0].clientX - state.lastX;
                     state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                     state.lastX = e.touches[0].clientX;
+                    
                     const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
                     if (isLocked) { 
                         seekInstant(v1, targetTime); 
@@ -1024,6 +2019,7 @@
                     } else { 
                         seekInstant(video, targetTime); 
                     }
+                    
                     state.tickPos += deltaX;
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
                     updateGlobalTicks(deltaX);
@@ -1031,6 +2027,7 @@
             }, {passive: false});
 
             jog.addEventListener('touchend', () => { 
+                // Apply inertia if releasing with velocity
                 if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
                     state.inertiaActive = true; 
                     applyInertia(); 
@@ -1038,6 +2035,7 @@
                 state.isDragging = false; 
             });
             
+            // Double-tap to reset zoom
             jog.addEventListener('dblclick', () => { 
                 state.scale = 1; 
                 state.posX = 0; 
@@ -1050,15 +2048,26 @@
             });
         }
 
+        // Initialize zoom/scrub for both video players
         setupZoomScrub('jog1', 'v1', 'zoom1', 'ticks1');
         setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2');
 
         // =================================================================
-        // GLOBALES JOG-WHEEL FÜR SYNC-LOCK MODUS
+        // GLOBAL JOG WHEEL FOR SYNC-LOCK MODE
+        // Overlay jog wheel that controls both videos simultaneously
         // =================================================================
-        function setupGlobalJog() {
-            const jog = document.getElementById('jogGlobal');
-            const ticks = document.getElementById('ticksGlobal');
+        
+        /**
+         * Setup global jog wheel functionality for sync-lock mode
+         * This jog wheel appears as overlay on video frames when locked
+         * @param {string} jogId - ID of jog overlay element
+         * @param {string} ticksId - ID of tick container element
+         */
+        function setupGlobalJogOverlay(jogId, ticksId) {
+            const jog = document.getElementById(jogId);
+            const ticks = document.getElementById(ticksId);
+            
+            if (!jog || !ticks) return;
             
             let state = { 
                 isDragging: false, 
@@ -1069,22 +2078,38 @@
                 isMouseDragging: false
             };
 
+            /**
+             * Apply inertia scrolling for global jog
+             */
             const applyInertia = () => {
                 if (!state.inertiaActive) return;
+                
                 if (Math.abs(state.velocity) > 0.001) {
                     const targetTime = v1.currentTime + state.velocity;
                     seekInstant(v1, targetTime); 
                     seekInstant(v2, targetTime + syncDiff);
+                    
                     state.velocity *= 0.95; 
                     state.tickPos += (state.velocity * 1000); 
+                    
+                    // Update both global tick displays
                     ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    
+                    // Sync the other overlay's ticks
+                    const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
+                    const otherTicks = document.getElementById(otherId);
+                    if (otherTicks) {
+                        otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                    }
+                    
                     requestAnimationFrame(applyInertia);
                 } else { 
                     state.inertiaActive = false; 
                 }
             };
 
-            // MAUS DRAG
+            // ----- MOUSE EVENTS -----
+            
             jog.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return;
                 state.isMouseDragging = true;
@@ -1108,7 +2133,14 @@
                 seekInstant(v2, targetTime + syncDiff);
                 
                 state.tickPos += deltaX;
+                
+                // Update both tick displays
                 ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
+                const otherTicks = document.getElementById(otherId);
+                if (otherTicks) {
+                    otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                }
             });
 
             document.addEventListener('mouseup', () => {
@@ -1120,7 +2152,8 @@
                 state.isDragging = false;
             });
 
-            // TOUCH EVENTS
+            // ----- TOUCH EVENTS -----
+            
             jog.addEventListener('touchstart', (e) => {
                 state.inertiaActive = false; 
                 state.isDragging = true; 
@@ -1132,6 +2165,7 @@
 
             jog.addEventListener('touchmove', (e) => {
                 if (!state.isDragging) return;
+                
                 const deltaX = e.touches[0].clientX - state.lastX;
                 state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.touches[0].clientX;
@@ -1142,6 +2176,13 @@
                 
                 state.tickPos += deltaX;
                 ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                
+                // Sync other overlay
+                const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
+                const otherTicks = document.getElementById(otherId);
+                if (otherTicks) {
+                    otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                }
             }, {passive: false});
 
             jog.addEventListener('touchend', () => { 
@@ -1153,7 +2194,9 @@
             });
         }
         
-        setupGlobalJog();
+        // Initialize global jog overlays for both players
+        setupGlobalJogOverlay('jogGlobal1', 'ticksGlobal1');
+        setupGlobalJogOverlay('jogGlobal2', 'ticksGlobal2');
     </script>
 </body>
 </html>

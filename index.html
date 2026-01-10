@@ -603,12 +603,11 @@
 
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls1">
-                <!-- Jump to start of video - double triangle icon -->
+                <!-- Jump to start of video - line with left arrow icon -->
                 <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Go to start">
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6z"/>
-                        <path d="M9 12l5 4V8z"/>
-                        <path d="M14 12l5 4V8z"/>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M6 6v12"/>
+                        <path d="M20 12H10M15 17l-5-5 5-5"/>
                     </svg>
                 </button>
                 <!-- Step backward one frame (hold for slow reverse playback) - left arrow -->
@@ -684,12 +683,11 @@
 
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls2">
-                <!-- Jump to start of video - double triangle icon -->
+                <!-- Jump to start of video - line with left arrow icon -->
                 <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Go to start">
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 6h2v12H6z"/>
-                        <path d="M9 12l5 4V8z"/>
-                        <path d="M14 12l5 4V8z"/>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M6 6v12"/>
+                        <path d="M20 12H10M15 17l-5-5 5-5"/>
                     </svg>
                 </button>
                 <!-- Step backward one frame - left arrow -->
@@ -746,12 +744,11 @@
     <!-- ================================================================= -->
     <div id="syncPanel" style="display: none;">
         <div>
-            <!-- Jump to start button (synced) - double triangle icon -->
+            <!-- Jump to start button (synced) - line with left arrow icon -->
             <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-3" title="Go to start">
-                <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 6h2v12H6z"/>
-                    <path d="M9 12l5 4V8z"/>
-                    <path d="M14 12l5 4V8z"/>
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <path d="M6 6v12"/>
+                    <path d="M20 12H10M15 17l-5-5 5-5"/>
                 </svg>
             </button>
 

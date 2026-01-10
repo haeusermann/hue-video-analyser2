@@ -888,6 +888,8 @@
         let offset1 = 0;          // Timer offset for Player 1 (for relative timing)
         let offset2 = 0;          // Timer offset for Player 2
         let syncDiff = 0;         // Time difference between videos when sync-locked
+        let syncLockStartTime1 = 0;  // Video 1 position when sync lock was activated
+        let syncLockStartTime2 = 0;  // Video 2 position when sync lock was activated
         
         // Scrub sensitivity: Controls how fast video scrubs when dragging
         // Higher value = faster scrubbing, 0.0625 = 25% increase from default
@@ -1000,26 +1002,20 @@
         
         /**
          * Jump both videos to start position
-         * Respects sync offset when locked
+         * When sync-locked: returns to the frame positions where sync lock was activated
+         * When not locked: goes to beginning (0) of both videos
          */
         function goToStart() {
             v1.pause();
             v2.pause();
             
             if (isLocked) {
-                // When sync-locked, calculate start positions that maintain sync
-                if (syncDiff >= 0) {
-                    // Video 2 is ahead, so start V1 at negative offset (will clamp to 0)
-                    seekInstant(v1, 0 - syncDiff);
-                    seekInstant(v2, 0);
-                } else {
-                    // Video 1 is ahead
-                    seekInstant(v1, 0);
-                    seekInstant(v2, 0 + syncDiff);
-                }
+                // When sync-locked, return to the positions where sync lock was activated
+                seekInstant(v1, syncLockStartTime1);
+                seekInstant(v2, syncLockStartTime2);
                 
                 if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'go_to_start_synced' });
+                    window.va('event', { name: 'go_to_sync_lock_start' });
                 }
             } else {
                 // Not locked: just go to 0 for both
@@ -1284,12 +1280,18 @@
         /**
          * Toggle sync lock between videos
          * When locked, videos maintain their relative time offset
+         * Also stores the current positions as "start" positions for go-to-start
          */
         function toggleLock() {
             isLocked = !isLocked;
             const btn = document.getElementById('lockBtn');
 
             if (isLocked) {
+                // Store current positions as sync lock start positions
+                // These will be used when go-to-start is pressed while locked
+                syncLockStartTime1 = v1.currentTime;
+                syncLockStartTime2 = v2.currentTime;
+                
                 // Calculate and store time difference between videos
                 syncDiff = v2.currentTime - v1.currentTime;
                 btn.classList.add('active');

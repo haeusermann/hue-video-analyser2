@@ -36,15 +36,24 @@
 
     <title>Video Analyser</title>
 
-    <!-- ================================================================= -->
-    <!-- VERCEL WEB ANALYTICS INTEGRATION                                  -->
-    <!-- Tracks user interactions and app usage for analytics              -->
-    <!-- ================================================================= -->
+    <!-- ============================================================ -->
+    <!-- GOATCOUNTER ANALYTICS (cookieless, works on all deployments) -->
+    <!-- Tracks page views for GitHub Pages AND Vercel in one place.  -->
+    <!-- ============================================================ -->
     <script>
-        // Initialize Vercel Analytics queue before script loads
-        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+        // Config must be defined BEFORE count.js loads.
+        // Prefix every tracked path with the hostname so that hits from
+        // haeusermann.github.io and hue-video-analyzer.vercel.app can be
+        // told apart in the same GoatCounter dashboard.
+        window.goatcounter = {
+            path: function (p) {
+                return location.host + p;
+            }
+        };
     </script>
-    <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Loads the GoatCounter tracking script asynchronously (no render blocking) -->
+    <script data-goatcounter="https://huesiski.goatcounter.com/count"
+            async src="//gc.zgo.at/count.js"></script>
     
     <!-- Tailwind CSS compiled output -->
     <link rel="stylesheet" href="./dist/output.css">

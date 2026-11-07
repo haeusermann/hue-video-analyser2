@@ -523,6 +523,34 @@
         /* ============================================================= */
         /* SYNC FRAME CONTROLS - Frame step buttons in sync panel        */
         /* ============================================================= */
+        /* ============================================================= */
+        /* ZOOM BADGE - Shows the zoom level briefly, click resets zoom  */
+        /* ============================================================= */
+        .zoom-badge {
+            position: absolute;
+            left: 10px;
+            bottom: 70px;
+            z-index: 30;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(96, 165, 250, 0.4);
+            color: #60a5fa;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .zoom-badge.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .sync-frame-controls {
             display: flex;
             gap: 4px;
@@ -1113,12 +1141,29 @@
 
         // =================================================================
         // KEYBOARD CONTROLS (Desktop)
-        // Arrow keys for frame stepping, Space for play/pause
+        // Arrow keys for frame stepping, Space for play/pause,
+        // + / - / 0 for zoom, Shift + arrows to move the zoomed view
         // =================================================================
         
         document.addEventListener('keydown', (e) => {
             // Don't hijack keys while a dropdown or input has focus
             if (e.target.closest && e.target.closest('select, input, textarea')) return;
+
+            // Zoom: + / - / 0 (player under the mouse in dual mode)
+            if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                if (e.key === '+') { e.preventDefault(); activeZoom().zoomBy(KEY_ZOOM_STEP); return; }
+                if (e.key === '-') { e.preventDefault(); activeZoom().zoomBy(1 / KEY_ZOOM_STEP); return; }
+                if (e.key === '0') { e.preventDefault(); activeZoom().reset(); return; }
+            }
+
+            // Shift + arrow keys: move the zoomed view (arrow = direction you look)
+            if (e.shiftKey && e.code.startsWith('Arrow')) {
+                e.preventDefault();
+                const dx = e.code === 'ArrowLeft' ? KEY_PAN_STEP : e.code === 'ArrowRight' ? -KEY_PAN_STEP : 0;
+                const dy = e.code === 'ArrowUp' ? KEY_PAN_STEP : e.code === 'ArrowDown' ? -KEY_PAN_STEP : 0;
+                activeZoom().panBy(dx, dy);
+                return;
+            }
 
             switch(e.code) {
                 case 'Space':
@@ -1954,13 +1999,20 @@
         // Pinch-to-zoom, pan, and jog wheel scrubbing
         // =================================================================
         
+        const MIN_ZOOM = 1;
+        const MAX_ZOOM = 5;
+        const KEY_ZOOM_STEP = 1.25;     // Zoom factor per +/- key press
+        const KEY_PAN_STEP = 40;        // px per Shift+Arrow key press
+
         /**
          * Setup zoom and scrub functionality for a video player
          * Handles:
-         * - Pinch-to-zoom (two-finger)
-         * - Pan when zoomed (two-finger drag)
-         * - Timeline scrubbing (one-finger horizontal drag)
+         * - Pinch-to-zoom (two-finger touch, trackpad pinch, Safari gesture)
+         * - Mouse wheel zoom towards the cursor
+         * - Pan when zoomed (two-finger drag, trackpad scroll, right mouse drag)
+         * - Timeline scrubbing (one-finger / left mouse horizontal drag)
          * - Inertia scrolling
+         * Returns a controller used by the keyboard shortcuts.
          * @param {string} jogId - ID of jog overlay element
          * @param {string} videoId - ID of video element
          * @param {string} zoomId - ID of zoom wrapper element
@@ -1971,9 +2023,15 @@
             const video = document.getElementById(videoId);
             const zoomWrapper = document.getElementById(zoomId);
             const ticks = document.getElementById(ticksId);
-            
+            const container = jog.parentElement;   // .video-container of this player
+
             // Zoom and scrub state
-            let state = { 
+            let state = {
+                isPanning: false,        // Right mouse button drag pans the zoomed video
+                panX: 0,                 // Last mouse position while panning
+                panY: 0,
+                touchActive: false,      // A finger is on the screen (ignore Safari gesture events)
+                gestureScale: 1,         // Scale at start of a Safari trackpad gesture
                 isDragging: false,       // Currently dragging for scrub
                 lastX: 0,                // Last X position for delta calculation
                 lastY: 0,                // Last Y position for delta calculation
@@ -1994,6 +2052,85 @@
             const updateTransform = () => {
                 zoomWrapper.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
             };
+
+            /**
+             * Keep the zoomed video covering the view: its edges never move
+             * inside the visible area (no empty space after panning)
+             */
+            const clampPan = () => {
+                const cw = container.clientWidth, ch = container.clientHeight;
+                const vw = (video.offsetWidth || cw) * state.scale;
+                const vh = (video.offsetHeight || ch) * state.scale;
+                const maxX = Math.max(0, (vw - cw) / 2);
+                const maxY = Math.max(0, (vh - ch) / 2);
+                state.posX = Math.max(-maxX, Math.min(maxX, state.posX));
+                state.posY = Math.max(-maxY, Math.min(maxY, state.posY));
+            };
+
+            // Zoom level badge (fades out, click resets zoom)
+            const badge = document.createElement('button');
+            badge.className = 'zoom-badge';
+            badge.title = 'Reset zoom';
+            container.appendChild(badge);
+            let badgeTimer = null;
+            const showBadge = () => {
+                clearTimeout(badgeTimer);
+                if (state.scale <= MIN_ZOOM) {
+                    badge.classList.remove('visible');
+                    return;
+                }
+                badge.textContent = state.scale.toFixed(1) + '×';
+                badge.classList.add('visible');
+                badgeTimer = setTimeout(() => badge.classList.remove('visible'), 1500);
+            };
+
+            /**
+             * Position relative to the centre of the player (zoom origin)
+             */
+            const pointFromEvent = (e) => {
+                const r = container.getBoundingClientRect();
+                return { x: e.clientX - (r.left + r.width / 2), y: e.clientY - (r.top + r.height / 2) };
+            };
+
+            /**
+             * Zoom to newScale while keeping the point (px, py) - relative to
+             * the player centre - fixed under the cursor/fingers
+             */
+            const zoomAt = (newScale, px = 0, py = 0) => {
+                newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+                if (newScale === state.scale) { showBadge(); return; }
+                const k = newScale / state.scale;
+                state.posX = px - (px - state.posX) * k;
+                state.posY = py - (py - state.posY) * k;
+                state.scale = newScale;
+                if (state.scale === MIN_ZOOM) { state.posX = 0; state.posY = 0; }
+                clampPan();
+                updateTransform();
+                showBadge();
+            };
+
+            /**
+             * Move the zoomed video by (dx, dy) screen pixels
+             */
+            const panBy = (dx, dy) => {
+                if (state.scale <= MIN_ZOOM) return;
+                state.posX += dx;
+                state.posY += dy;
+                clampPan();
+                updateTransform();
+            };
+
+            /**
+             * Back to 1x, centred
+             */
+            const resetZoom = () => {
+                state.scale = 1;
+                state.posX = 0;
+                state.posY = 0;
+                updateTransform();
+                showBadge();
+            };
+            badge.addEventListener('click', resetZoom);
 
             /**
              * Update global jog wheel ticks when sync-locked
@@ -2074,7 +2211,8 @@
             jog.addEventListener('touchstart', (e) => {
                 // Stop any ongoing flywheel coasting
                 flywheel.reset();
-                
+                state.touchActive = true;
+
                 if (e.touches.length === 2) {
                     // Two-finger gesture: pinch zoom
                     state.initialDist = Math.hypot(
@@ -2125,9 +2263,11 @@
                         state.posY = 0; 
                     }
                     
-                    state.lastTouchX = curX; 
+                    state.lastTouchX = curX;
                     state.lastTouchY = curY;
+                    clampPan();
                     updateTransform();
+                    showBadge();
                     
                 } else if (state.isDragging) {
                     // Single-finger scrub
@@ -2142,25 +2282,120 @@
                 // Coast on with the release velocity (only when the last finger lifts)
                 if (state.isDragging && e.touches.length === 0) flywheel.release();
                 state.isDragging = false;
+                if (e.touches.length === 0) state.touchActive = false;
             });
 
             jog.addEventListener('touchcancel', () => {
                 flywheel.reset();
                 state.isDragging = false;
+                state.touchActive = false;
             });
-            
-            // Double-tap to reset zoom
-            jog.addEventListener('dblclick', () => { 
-                state.scale = 1; 
-                state.posX = 0; 
-                state.posY = 0; 
-                updateTransform(); 
+
+            // Double-tap / double-click to reset zoom
+            jog.addEventListener('dblclick', resetZoom);
+
+            // ----- DESKTOP ZOOM & PAN (mouse, trackpad) -----
+
+            // Mouse wheel zooms towards the cursor. Trackpad: pinch zooms
+            // (sent as wheel + ctrlKey), two-finger scrolling pans when zoomed.
+            let lastTrackpadScroll = 0;
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();   // no page scroll / browser zoom over the video
+                const p = pointFromEvent(e);
+
+                // Normalise line/page deltas (Firefox) to pixels
+                const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+                const dx = e.deltaX * unit, dy = e.deltaY * unit;
+
+                if (e.ctrlKey) {
+                    // Trackpad pinch (Chrome, Edge, Firefox) or Ctrl + wheel
+                    zoomAt(state.scale * Math.exp(-dy * 0.01), p.x, p.y);
+                    return;
+                }
+
+                // Trackpad scrolling: sideways movement or fine pixel deltas.
+                // A gesture keeps counting as trackpad for a moment.
+                const now = performance.now();
+                if (e.deltaMode === 0 && (dx !== 0 || Math.abs(dy) < 16)) lastTrackpadScroll = now;
+                const isTrackpadScroll = now - lastTrackpadScroll < 300;
+
+                if (isTrackpadScroll && state.scale > MIN_ZOOM) {
+                    panBy(-dx, -dy);
+                } else {
+                    // Mouse wheel: one notch (~100 px) = about 16 % zoom
+                    zoomAt(state.scale * Math.exp(-dy * 0.0015), p.x, p.y);
+                }
+            }, { passive: false });
+
+            // Safari on macOS reports trackpad pinch as gesture events
+            container.addEventListener('gesturestart', (e) => {
+                if (state.touchActive) return;   // iPhone/iPad: handled by the touch code
+                e.preventDefault();
+                state.gestureScale = state.scale;
             });
+            container.addEventListener('gesturechange', (e) => {
+                if (state.touchActive) return;
+                e.preventDefault();
+                const p = pointFromEvent(e);
+                zoomAt(state.gestureScale * e.scale, p.x, p.y);
+            });
+
+            // Right mouse button drag pans the zoomed video
+            container.addEventListener('mousedown', (e) => {
+                if (e.button !== 2) return;
+                e.preventDefault();
+                state.isPanning = true;
+                state.panX = e.clientX;
+                state.panY = e.clientY;
+                if (state.scale > MIN_ZOOM) container.style.cursor = 'grabbing';
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!state.isPanning) return;
+                panBy(e.clientX - state.panX, e.clientY - state.panY);
+                state.panX = e.clientX;
+                state.panY = e.clientY;
+            });
+            document.addEventListener('mouseup', (e) => {
+                if (!state.isPanning || e.button !== 2) return;
+                state.isPanning = false;
+                container.style.cursor = '';
+            });
+            // No browser context menu over the video (right button is used for panning)
+            container.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Keyboard zoom acts on the player under the mouse
+            container.addEventListener('mouseenter', () => { hoveredVideoId = videoId; });
+
+            // New video: start unzoomed
+            video.addEventListener('loadedmetadata', resetZoom);
+            // Window size changed: keep the zoomed video inside the view
+            window.addEventListener('resize', () => { clampPan(); updateTransform(); });
+
+            return {
+                zoomBy: (factor) => zoomAt(state.scale * factor),
+                panBy,
+                reset: resetZoom,
+                get scale() { return state.scale; },
+                get pos() { return { x: state.posX, y: state.posY }; },
+            };
         }
 
+        // Player whose zoom the keyboard controls (last one under the mouse)
+        let hoveredVideoId = 'v1';
+
         // Initialize zoom/scrub for both video players
-        setupZoomScrub('jog1', 'v1', 'zoom1', 'ticks1');
-        setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2');
+        const zoomControls = {
+            v1: setupZoomScrub('jog1', 'v1', 'zoom1', 'ticks1'),
+            v2: setupZoomScrub('jog2', 'v2', 'zoom2', 'ticks2'),
+        };
+
+        /**
+         * Zoom controller for keyboard shortcuts: player under the mouse
+         * in dual mode, otherwise Player 1
+         */
+        function activeZoom() {
+            return zoomControls[compareMode && hoveredVideoId === 'v2' ? 'v2' : 'v1'];
+        }
 
         // =================================================================
         // GLOBAL JOG WHEEL FOR SYNC-LOCK MODE

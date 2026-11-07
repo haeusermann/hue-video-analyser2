@@ -1,6 +1,6 @@
 {
   "name": "hue-video-analyser",
-  "version": "1.0.0",
+  "version": "2.1",
   "description": "Video Analyser PWA - Plain HTML, no build needed",
   "scripts": {
     "build": "echo 'No build needed - plain HTML PWA'",

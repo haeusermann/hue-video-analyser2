@@ -54,10 +54,6 @@
     <!-- Loads the GoatCounter tracking script asynchronously (no render blocking) -->
     <script data-goatcounter="https://huesiski.goatcounter.com/count"
             async src="//gc.zgo.at/count.js"></script>
-    
-    <!-- Tailwind CSS compiled output -->
-    <link rel="stylesheet" href="./dist/output.css">
-    
     <!-- ================================================================= -->
     <!-- CUSTOM STYLES                                                     -->
     <!-- ================================================================= -->
@@ -469,11 +465,6 @@
             display: none;
         }
 
-        /* Player 2 hidden in single mode */
-        #player2.hidden {
-            display: none !important;
-        }
-
         /* ============================================================= */
         /* SYNC PANEL - Control bar for dual video mode                  */
         /* ============================================================= */
@@ -558,7 +549,7 @@
     <!-- ================================================================= -->
     <div id="splash-screen">
         <img src="Logo.png" alt="Häusermann's Video Analyser" onerror="this.style.display='none'; document.getElementById('splash-text').style.display='block';">
-        <h1 id="splash-text" class="text-white text-2xl font-bold tracking-widest hidden">Video Analyser</h1>
+        <h1 id="splash-text" style="display: none; color: #fff; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.1em;">Video Analyser</h1>
     </div>
 
     <!-- ================================================================= -->
@@ -911,34 +902,213 @@
         let syncLockStartTime1 = 0;  // Video 1 position when sync lock was activated
         let syncLockStartTime2 = 0;  // Video 2 position when sync lock was activated
         
-        // Scrub sensitivity: Controls how fast video scrubs when dragging
-        // Higher value = faster scrubbing, 0.0625 = 25% increase from default
-        const SCRUB_SENSITIVITY = 0.0625;
-        
+        // Flywheel (momentum) behaviour after releasing the jog wheel
+        // Max coast distance ~ MAX_VELOCITY * 16.7 / (1 - FRICTION) px (1 px = 10 ms video)
+        const FLYWHEEL_FRICTION = 0.88;     // Velocity kept per 16.7 ms (lower = stops sooner)
+        const FLYWHEEL_MIN_START = 0.2;     // px/ms - slower releases don't coast
+        const FLYWHEEL_MIN_STOP = 0.03;     // px/ms - coasting ends below this
+        const FLYWHEEL_MAX_VELOCITY = 2;    // px/ms - cap for very fast flicks
+        const FLYWHEEL_STALE_MS = 80;       // Finger held still this long = no coasting
+
+        // All flywheels, so any touch or Play can stop coasting everywhere
+        const allFlywheels = [];
+        function stopAllFlywheels() {
+            allFlywheels.forEach(fw => fw.stop());
+        }
+        // Any new touch, click or key press stops coasting (and frame rate measuring)
+        const onUserInput = () => {
+            stopAllFlywheels();
+            cancelFrameProbes();
+        };
+        document.addEventListener('touchstart', onUserInput, { capture: true, passive: true });
+        document.addEventListener('mousedown', onUserInput, { capture: true });
+        document.addEventListener('keydown', onUserInput, { capture: true });
+
+        /**
+         * Creates a time-based flywheel for a jog wheel.
+         * Feed it finger movement with track(); call release() when the finger
+         * lifts and it keeps calling applyDelta(px) with decaying speed,
+         * using the same px units as the live drag.
+         * @param {function(number):void} applyDelta - Scrubs the video by a pixel delta
+         */
+        function createFlywheel(applyDelta) {
+            let velocity = 0;   // px/ms
+            let lastMoveTime = 0;
+            let rafId = null;
+
+            const stop = () => {
+                if (rafId !== null) cancelAnimationFrame(rafId);
+                rafId = null;
+            };
+
+            const fw = {
+                stop,
+                // Call at the start of a new touch/drag
+                reset() {
+                    stop();
+                    velocity = 0;
+                    lastMoveTime = 0;
+                },
+                // Call on every drag movement with the pixel delta
+                track(deltaX) {
+                    const now = performance.now();
+                    if (lastMoveTime) {
+                        const dt = Math.max(now - lastMoveTime, 1);
+                        const instant = deltaX / dt;
+                        velocity = 0.8 * instant + 0.2 * velocity; // smoothed
+                    }
+                    lastMoveTime = now;
+                },
+                // Call when the finger/mouse is released
+                release() {
+                    stop();
+                    const idle = performance.now() - lastMoveTime;
+                    if (!lastMoveTime || idle > FLYWHEEL_STALE_MS ||
+                        Math.abs(velocity) < FLYWHEEL_MIN_START) return;
+
+                    velocity = Math.max(-FLYWHEEL_MAX_VELOCITY, Math.min(velocity, FLYWHEEL_MAX_VELOCITY));
+                    let prev = performance.now();
+                    const step = (now) => {
+                        const dt = Math.min(now - prev, 50);
+                        prev = now;
+                        applyDelta(velocity * dt);
+                        velocity *= Math.pow(FLYWHEEL_FRICTION, dt / 16.67);
+                        rafId = Math.abs(velocity) > FLYWHEEL_MIN_STOP ? requestAnimationFrame(step) : null;
+                    };
+                    rafId = requestAnimationFrame(step);
+                }
+            };
+            allFlywheels.push(fw);
+            return fw;
+        }
+
         // Slow playback speed when holding frame step buttons (0.25x)
         const HOLD_PLAY_SPEED = 0.25;
 
         // =================================================================
-        // VIDEO METADATA HANDLERS
-        // Initialize video properties when video file is loaded
+        // FRAME RATE DETECTION
+        // Measures the real frame rate of each video so frame steps hit
+        // exactly one frame (25, 30, 60, 120, 240 fps ...)
         // =================================================================
-        
-        v1.addEventListener('loadedmetadata', () => {
-            // Set initial playback rate from speed selector
-            v1.playbackRate = parseFloat(document.getElementById('speed1').value);
-            // Track video load event for analytics
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'video_loaded', data: { player: 1 } });
-            }
-        });
-        
-        v2.addEventListener('loadedmetadata', () => {
-            // Set initial playback rate from speed selector
-            v2.playbackRate = parseFloat(document.getElementById('speed2').value);
-            // Track video load event for analytics
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'video_loaded', data: { player: 2 } });
-            }
+
+        const DEFAULT_FRAME_DURATION = 1 / 30;   // Fallback until measured
+        const COMMON_FPS = [24, 25, 30, 48, 50, 60, 90, 100, 120, 240];
+
+        /**
+         * Duration of one frame in seconds for the given video
+         * @param {HTMLVideoElement} video
+         */
+        function frameDur(video) {
+            return video._frameDur || DEFAULT_FRAME_DURATION;
+        }
+
+        /**
+         * Speed selected by the user for this video
+         * @param {HTMLVideoElement} video
+         */
+        function selectedSpeed(video) {
+            return parseFloat(document.getElementById(video === v1 ? 'speed1' : 'speed2').value);
+        }
+
+        /**
+         * Briefly plays the video muted at 0.25x after loading and measures
+         * the time between consecutive frames, then returns to the start.
+         * Cancelled as soon as the user interacts (see cancelFrameProbes).
+         * @param {HTMLVideoElement} video
+         */
+        function probeFrameRate(video) {
+            if (!('requestVideoFrameCallback' in video)) return;
+
+            const token = {};
+            video._probe = token;
+            const deltas = [];
+            let last = null;
+
+            const finish = () => {
+                if (video._probe !== token) return;
+                video._probe = null;
+                video.pause();
+                video.playbackRate = selectedSpeed(video);
+                video.currentTime = 0;
+                if (deltas.length) {
+                    const fps = 1 / Math.min(...deltas);
+                    // Snap to a common frame rate when close (within 4 %)
+                    const snap = COMMON_FPS.find(f => Math.abs(f - fps) / f < 0.04);
+                    video._frameDur = 1 / (snap || fps);
+                }
+            };
+
+            const onFrame = (now, meta) => {
+                if (video._probe !== token) return;
+                if (last && meta.presentedFrames - last.n === 1) {
+                    const d = meta.mediaTime - last.t;
+                    if (d > 0.002) deltas.push(d);
+                }
+                last = { t: meta.mediaTime, n: meta.presentedFrames };
+                if (deltas.length >= 6) finish();
+                else video.requestVideoFrameCallback(onFrame);
+            };
+
+            video.playbackRate = 0.25;
+            video.requestVideoFrameCallback(onFrame);
+            video.play().catch(() => {
+                if (video._probe === token) {
+                    video._probe = null;
+                    video.playbackRate = selectedSpeed(video);
+                }
+            });
+            setTimeout(finish, 2000);
+        }
+
+        /**
+         * Stop running frame rate measurements (user takes over)
+         */
+        function cancelFrameProbes() {
+            [v1, v2].forEach(video => {
+                if (!video._probe) return;
+                video._probe = null;
+                video.pause();
+                video.playbackRate = selectedSpeed(video);
+            });
+        }
+
+        // =================================================================
+        // SYNC-LOCKED SEEKING
+        // Keeps v2 exactly syncDiff ahead of v1, also at the video edges
+        // =================================================================
+
+        /**
+         * Seek both videos while sync-locked. The target is clamped so that
+         * neither video runs past its start or end (prevents losing sync).
+         * @param {number} t1 - Target time for v1
+         */
+        function seekSynced(t1) {
+            const d1 = v1.duration || Infinity;
+            const d2 = v2.duration || Infinity;
+            const lo = Math.max(0, -syncDiff);
+            const hi = Math.min(d1, d2 - syncDiff);
+            const t = hi >= lo ? Math.min(Math.max(t1, lo), hi) : Math.max(0, t1);
+            seekInstant(v1, t);
+            seekInstant(v2, t + syncDiff);
+        }
+
+        // =================================================================
+        // VIDEO EVENT HANDLERS
+        // =================================================================
+
+        [v1, v2].forEach(video => {
+            video.addEventListener('loadedmetadata', () => {
+                // Set initial playback rate from speed selector
+                video.playbackRate = selectedSpeed(video);
+            });
+            // Measure frame rate once the first frame is available
+            video.addEventListener('loadeddata', () => probeFrameRate(video));
+            // Playing stops any flywheel coasting
+            video.addEventListener('play', () => {
+                if (!video._probe) stopAllFlywheels();
+            });
+            // Keep play/pause icons in sync with the real state
+            ['play', 'pause', 'ended'].forEach(ev => video.addEventListener(ev, updatePlayIcons));
         });
 
         // =================================================================
@@ -947,73 +1117,72 @@
         // =================================================================
         
         document.addEventListener('keydown', (e) => {
-            // Skip keyboard handling on touch devices
-            if ('ontouchstart' in window) return;
-            
+            // Don't hijack keys while a dropdown or input has focus
+            if (e.target.closest && e.target.closest('select, input, textarea')) return;
+
             switch(e.code) {
                 case 'Space':
                     // Prevent page scroll
                     e.preventDefault();
-                    
+
                     // Handle play/pause based on current mode
-                    if (compareMode && isLocked) {
-                        // Sync-locked mode: toggle both videos together
+                    if (compareMode) {
+                        // Dual mode: toggle both videos together
                         toggleSyncPlay();
-                    } else if (compareMode) {
-                        // Dual mode without sync: toggle both independently
-                        const isPlaying = !v1.paused || !v2.paused;
-                        if (isPlaying) { v1.pause(); v2.pause(); } 
-                        else { v1.play(); v2.play(); }
                     } else {
                         // Single mode: toggle Player 1 only
                         togglePlay('v1');
                     }
                     break;
-                    
+
                 case 'ArrowRight':
-                    // Step forward one frame (1/30th of a second)
                     e.preventDefault();
-                    v1.pause();
-                    
-                    if (compareMode) {
-                        v2.pause();
-                        const targetTime = v1.currentTime + 1/30;
-                        seekInstant(v1, targetTime);
-                        
-                        if (isLocked) {
-                            // Maintain sync offset when locked
-                            seekInstant(v2, targetTime + syncDiff);
-                        } else {
-                            // Step Player 2 independently
-                            seekInstant(v2, v2.currentTime + 1/30);
-                        }
-                    } else {
-                        // Single mode: step Player 1 only
-                        seekInstant(v1, v1.currentTime + 1/30);
-                    }
+                    if (compareMode) stepBoth(1); else stepVideo(v1, 1);
                     break;
-                    
+
                 case 'ArrowLeft':
-                    // Step backward one frame
                     e.preventDefault();
-                    v1.pause();
-                    
-                    if (compareMode) {
-                        v2.pause();
-                        const targetTime = v1.currentTime - 1/30;
-                        seekInstant(v1, targetTime);
-                        
-                        if (isLocked) {
-                            seekInstant(v2, targetTime + syncDiff);
-                        } else {
-                            seekInstant(v2, v2.currentTime - 1/30);
-                        }
-                    } else {
-                        seekInstant(v1, v1.currentTime - 1/30);
-                    }
+                    if (compareMode) stepBoth(-1); else stepVideo(v1, -1);
                     break;
             }
         });
+
+        // =================================================================
+        // FRAME STEPPING
+        // Moves exactly one frame, using the measured frame rate
+        // =================================================================
+
+        /**
+         * Time of the frame 'dir' frames away from time t (aims at the
+         * frame centre so rounding never lands on the same frame again)
+         */
+        function frameStepTime(video, t, dir) {
+            const d = frameDur(video);
+            const index = Math.floor(t / d + 1e-3);
+            return Math.max(0, (index + dir + 0.5) * d);
+        }
+
+        /**
+         * Step a single video by one frame (dir = 1 forward, -1 backward)
+         */
+        function stepVideo(video, dir) {
+            video.pause();
+            seekInstant(video, frameStepTime(video, video.currentTime, dir));
+        }
+
+        /**
+         * Step both videos by one frame, keeping the sync offset when locked
+         */
+        function stepBoth(dir) {
+            v1.pause();
+            v2.pause();
+            if (isLocked) {
+                seekSynced(frameStepTime(v1, v1.currentTime, dir));
+            } else {
+                seekInstant(v1, frameStepTime(v1, v1.currentTime, dir));
+                seekInstant(v2, frameStepTime(v2, v2.currentTime, dir));
+            }
+        }
 
         // =================================================================
         // GO TO START FUNCTIONS
@@ -1033,19 +1202,11 @@
                 // When sync-locked, return to the positions where sync lock was activated
                 seekInstant(v1, syncLockStartTime1);
                 seekInstant(v2, syncLockStartTime2);
-                
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'go_to_sync_lock_start' });
-                }
             } else {
                 // Not locked: just go to 0 for both
                 seekInstant(v1, 0);
                 if (compareMode) {
                     seekInstant(v2, 0);
-                }
-                
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'go_to_start' });
                 }
             }
         }
@@ -1067,10 +1228,6 @@
                 offset1 = 0;
             } else {
                 offset2 = 0;
-            }
-            
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'go_to_start_single', data: { player: playerId } });
             }
         }
 
@@ -1096,26 +1253,16 @@
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
             } else {
                 // Switch to single mode
+                // Release sync lock (resets button and global jog overlays)
+                if (isLocked) toggleLock();
+                // Player 2 is hidden now - don't let it play on invisibly
+                v2.pause();
                 document.getElementById('player2').style.display = 'none';
                 document.getElementById('syncPanel').style.display = 'none';
                 document.getElementById('compareBtnText').innerText = 'DUAL';
                 workbench.className = 'mode-single';
-                // Reset sync lock state
-                isLocked = false;
-                
-                // Reset sync lock button appearance
-                document.getElementById('lockBtn').classList.remove('active');
-                
-                // Hide global jog overlays
-                document.body.classList.remove('sync-locked');
             }
-
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { 
-                    name: 'mode_changed', 
-                    data: { mode: compareMode ? 'dual' : 'single' } 
-                });
-            }
+            updatePlayIcons();
         }
 
         // =================================================================
@@ -1158,29 +1305,36 @@
          * @param {string} target - 'main' for Player 1, 'compare' for Player 2
          */
         function loadVideo(event, target) {
-            const file = event.target.files[0];
+            const input = event.target;
+            const file = input.files[0];
+            // Clear the input so choosing the same file again still fires 'change'
+            input.value = '';
             if (!file) return;
-            
-            // Create blob URL for local file
-            const url = URL.createObjectURL(file);
-            
-            if (target === 'main') { 
-                v1.src = url; 
-                // Reset speed selector to default
-                const speedSelect = document.getElementById('speed1');
-                speedSelect.value = "1.0";
-                v1.playbackRate = 1.0; 
-                v1.load(); 
-                // Reset timer offset
-                offset1 = 0; 
-            } else { 
-                v2.src = url; 
-                const speedSelect = document.getElementById('speed2');
-                speedSelect.value = "1.0";
-                v2.playbackRate = 1.0;
-                v2.load(); 
-                offset2 = 0; 
+
+            const video = target === 'main' ? v1 : v2;
+
+            // A new video invalidates the sync offset - release the lock
+            if (isLocked) toggleLock();
+
+            // Stop a running frame rate measurement and forget the old frame rate
+            cancelFrameProbes();
+            video._frameDur = null;
+
+            // Free the previous blob URL (otherwise the old video stays in memory)
+            if (video.src && video.src.startsWith('blob:')) {
+                URL.revokeObjectURL(video.src);
             }
+
+            // Create blob URL for local file
+            video.src = URL.createObjectURL(file);
+
+            // Reset speed selector to default
+            document.getElementById(target === 'main' ? 'speed1' : 'speed2').value = "1.0";
+            video.playbackRate = 1.0;
+            video.load();
+
+            // Reset timer offset
+            if (target === 'main') offset1 = 0; else offset2 = 0;
         }
 
         // =================================================================
@@ -1200,10 +1354,6 @@
             } else {
                 offset2 = v2.currentTime;
                 document.getElementById('time2').innerText = '00:00.00';
-            }
-            
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'timer_reset', data: { player: id } });
             }
         }
 
@@ -1233,8 +1383,8 @@
          * @param {number} time - Target time in seconds
          */
         function seekInstant(video, time) {
-            // Wait for video to be ready
-            if (video.readyState < 2) return;
+            // Seeking needs at least the metadata (duration) to be loaded
+            if (video.readyState < 1) return;
             
             // Clamp to valid range
             const target = Math.max(0, Math.min(time, video.duration || Infinity));
@@ -1250,47 +1400,61 @@
         // Synchronize UI elements with video state
         // =================================================================
         
+        // SVG icons for play and pause states
+        const PLAY_ICON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+        const PAUSE_ICON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
         /**
-         * Update all UI elements to reflect current video state
+         * Set a button's icon, but only touch the DOM when it actually
+         * changes (replacing it under a finger can swallow the tap)
+         */
+        function setIcon(btnId, playing) {
+            const btn = document.getElementById(btnId);
+            const state = playing ? 'pause' : 'play';
+            if (btn.dataset.icon === state) return;
+            btn.dataset.icon = state;
+            btn.innerHTML = playing ? PAUSE_ICON : PLAY_ICON;
+        }
+
+        /**
+         * Update play/pause icons - called directly on play/pause events,
+         * so it also works while the video is paused
+         */
+        function updatePlayIcons() {
+            setIcon('playBtn1', !v1.paused);
+            setIcon('playBtn2', !v2.paused);
+            setIcon('syncPlayBtn', !v1.paused || !v2.paused);
+        }
+
+        /**
+         * Update the time displays
+         */
+        function updateTimes() {
+            document.getElementById('time1').innerText = formatTime(v1.currentTime, offset1);
+            document.getElementById('time2').innerText = formatTime(v2.currentTime, offset2);
+        }
+
+        /**
+         * Update the time displays in step with the shown video frame
          * Called on every time update for smooth feedback
          */
         function updateUI() {
-            const syncUIElements = () => {
-                // Update time displays
-                document.getElementById('time1').innerText = formatTime(v1.currentTime, offset1);
-                document.getElementById('time2').innerText = formatTime(v2.currentTime, offset2);
-
-                // SVG icons for play and pause states
-                const playIcon = '<svg width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-                const pauseIcon = '<svg width="24" height="24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-
-                // Update Player 1 play button icon
-                document.getElementById('playBtn1').innerHTML = v1.paused ? playIcon : pauseIcon;
-                
-                if (compareMode) {
-                    // Update Player 2 and sync button icons
-                    document.getElementById('playBtn2').innerHTML = v2.paused ? playIcon : pauseIcon;
-                    document.getElementById('syncPlayBtn').innerHTML = (v1.paused && v2.paused) ? playIcon : pauseIcon;
-                    
-                    // Disable individual play buttons when sync-locked
-                    document.getElementById('playBtn1').classList.toggle('disabled', isLocked);
-                    document.getElementById('playBtn2').classList.toggle('disabled', isLocked);
-                }
-            };
-
             // Use requestVideoFrameCallback for precise timing if available
             if ('requestVideoFrameCallback' in v1) {
-                v1.requestVideoFrameCallback(syncUIElements);
-                if (compareMode) v2.requestVideoFrameCallback(syncUIElements);
+                v1.requestVideoFrameCallback(updateTimes);
+                if (compareMode) v2.requestVideoFrameCallback(updateTimes);
             } else {
                 // Fallback to requestAnimationFrame
-                requestAnimationFrame(syncUIElements);
+                requestAnimationFrame(updateTimes);
             }
         }
 
         // Trigger UI update on video time changes
         v1.ontimeupdate = updateUI;
         v2.ontimeupdate = updateUI;
+        // After a seek the time is final - show it even if no new frame is drawn
+        v1.addEventListener('seeked', updateTimes);
+        v2.addEventListener('seeked', updateTimes);
 
         // =================================================================
         // SYNC LOCK FUNCTIONALITY
@@ -1325,21 +1489,13 @@
                 
                 // Activate sync-lock UI mode (shows global jog overlay)
                 document.body.classList.add('sync-locked');
-                
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'sync_lock_enabled' });
-                }
             } else {
                 btn.classList.remove('active');
                 
                 // Deactivate sync-lock UI mode
                 document.body.classList.remove('sync-locked');
-                
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'sync_lock_disabled' });
-                }
             }
-            updateUI();
+            updatePlayIcons();
         }
 
         // =================================================================
@@ -1359,10 +1515,6 @@
             document.getElementById('speed1').value = val;
             document.getElementById('speed2').value = val;
             document.getElementById('globalSpeed').value = val;
-            
-            if (typeof window.va !== 'undefined') {
-                window.va('event', { name: 'speed_changed', data: { speed: rate } });
-            }
         }
 
         /**
@@ -1404,9 +1556,11 @@
             if (isPlaying) { 
                 v1.pause(); 
                 v2.pause(); 
-            } else { 
-                v1.play(); 
-                v2.play(); 
+            } else {
+                // Re-align both videos before starting when sync-locked
+                if (isLocked) seekSynced(v1.currentTime);
+                v1.play();
+                v2.play();
             }
         }
 
@@ -1476,39 +1630,39 @@
              * Stop playback and restore original state
              */
             function stopPlay(btn) {
+                const wasHolding = isHolding;
                 isHolding = false;
                 btn.classList.remove('playing');
-                
+
                 // Clear any pending hold timeout
                 if (holdTimeout) {
                     clearTimeout(holdTimeout);
                     holdTimeout = null;
                 }
-                
+
                 // Clear reverse playback interval if exists
                 if (btn.dataset.intervalId) {
                     clearInterval(parseInt(btn.dataset.intervalId));
                     delete btn.dataset.intervalId;
                 }
-                
+
                 video.pause();
-                video.playbackRate = originalSpeed;
+                // Only a hold changed the speed - a quick tap must keep the user's speed
+                if (wasHolding) video.playbackRate = originalSpeed;
             }
             
             /**
              * Handle single frame step backward
              */
             function stepBackward() {
-                video.pause();
-                seekInstant(video, video.currentTime - 1/30);
+                stepVideo(video, -1);
             }
-            
+
             /**
              * Handle single frame step forward
              */
             function stepForward() {
-                video.pause();
-                seekInstant(video, video.currentTime + 1/30);
+                stepVideo(video, 1);
             }
             
             // ----- BACKWARD BUTTON EVENT HANDLERS -----
@@ -1642,12 +1796,12 @@
                     }
                     const stepAmount = (1/30) * HOLD_PLAY_SPEED;
                     const targetTime = v1.currentTime - stepAmount;
-                    seekInstant(v1, targetTime);
-                    
+
                     if (isLocked) {
-                        // Maintain sync offset
-                        seekInstant(v2, targetTime + syncDiff);
+                        // Maintain sync offset (clamped at the video edges)
+                        seekSynced(targetTime);
                     } else {
+                        seekInstant(v1, targetTime);
                         seekInstant(v2, v2.currentTime - stepAmount);
                     }
                 }, 1000/30);
@@ -1674,6 +1828,7 @@
              * Stop synchronized playback
              */
             function stopSyncPlay(btn) {
+                const wasHolding = isHolding;
                 isHolding = false;
                 btn.classList.remove('playing');
                 
@@ -1689,42 +1844,25 @@
                 
                 v1.pause();
                 v2.pause();
-                v1.playbackRate = originalSpeed1;
-                v2.playbackRate = originalSpeed2;
+                // Only a hold changed the speed - a quick tap must keep the user's speed
+                if (wasHolding) {
+                    v1.playbackRate = originalSpeed1;
+                    v2.playbackRate = originalSpeed2;
+                }
             }
             
             /**
              * Step both videos backward one frame
              */
             function stepSyncBackward() {
-                v1.pause();
-                v2.pause();
-                
-                const targetTime = v1.currentTime - 1/30;
-                seekInstant(v1, targetTime);
-                
-                if (isLocked) {
-                    seekInstant(v2, targetTime + syncDiff);
-                } else {
-                    seekInstant(v2, v2.currentTime - 1/30);
-                }
+                stepBoth(-1);
             }
-            
+
             /**
              * Step both videos forward one frame
              */
             function stepSyncForward() {
-                v1.pause();
-                v2.pause();
-                
-                const targetTime = v1.currentTime + 1/30;
-                seekInstant(v1, targetTime);
-                
-                if (isLocked) {
-                    seekInstant(v2, targetTime + syncDiff);
-                } else {
-                    seekInstant(v2, v2.currentTime + 1/30);
-                }
+                stepBoth(1);
             }
             
             // ----- BACKWARD BUTTON EVENTS -----
@@ -1846,8 +1984,6 @@
                 initialScale: 1,         // Scale at start of pinch gesture
                 lastTouchX: 0,           // Last touch center X
                 lastTouchY: 0,           // Last touch center Y
-                velocity: 0,             // Scrub velocity for inertia
-                inertiaActive: false,    // Whether inertia is currently animating
                 tickPos: 0,              // Tick animation position
                 isMouseDragging: false   // Mouse drag state (vs touch)
             };
@@ -1880,37 +2016,24 @@
             };
 
             /**
-             * Apply inertia scrolling after drag release
-             * Gradually decays velocity for smooth stop
+             * Scrub by a horizontal pixel delta (used by drag and flywheel)
              */
-            const applyInertia = () => {
-                if (!state.inertiaActive) return;
-                
-                // Continue while velocity is significant
-                if (Math.abs(state.velocity) > 0.001) {
-                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + state.velocity;
-                    
-                    if (isLocked) { 
-                        seekInstant(v1, targetTime); 
-                        // Use requestAnimationFrame for smooth sync
-                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-                    } else { 
-                        seekInstant(video, targetTime); 
-                    }
-                    
-                    // Apply friction
-                    state.velocity *= 0.95; 
-                    
-                    // Animate tick marks
-                    state.tickPos += (state.velocity * 1000);
-                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                    updateGlobalTicks(state.velocity * 1000);
-                    
-                    requestAnimationFrame(applyInertia);
-                } else { 
-                    state.inertiaActive = false; 
+            const scrubBy = (deltaX) => {
+                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                if (isLocked) {
+                    seekSynced(targetTime);
+                } else {
+                    seekInstant(video, targetTime);
                 }
+
+                // Animate tick marks
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+                updateGlobalTicks(deltaX);
             };
+
+            // Momentum after releasing the jog wheel
+            const flywheel = createFlywheel(scrubBy);
 
             // ----- MOUSE DRAG EVENTS -----
             
@@ -1922,43 +2045,26 @@
                 state.isDragging = true;
                 state.lastX = e.clientX;
                 state.lastY = e.clientY;
-                state.velocity = 0;
-                
+                flywheel.reset();
+
                 // Pause videos during scrub
-                v1.pause(); 
+                v1.pause();
                 v2.pause();
                 e.preventDefault();
             });
 
             document.addEventListener('mousemove', (e) => {
                 if (!state.isMouseDragging) return;
-                
+
                 const deltaX = e.clientX - state.lastX;
-                // Calculate velocity for inertia
-                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.clientX;
-                
-                // Scrub video based on drag distance
-                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                if (isLocked) { 
-                    seekInstant(v1, targetTime); 
-                    requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-                } else { 
-                    seekInstant(video, targetTime); 
-                }
-                
-                // Animate tick marks
-                state.tickPos += deltaX;
-                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                updateGlobalTicks(deltaX);
+                flywheel.track(deltaX);
+                scrubBy(deltaX);
             });
 
             document.addEventListener('mouseup', () => {
-                // Trigger inertia if releasing with velocity
-                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
-                    state.inertiaActive = true;
-                    applyInertia();
-                }
+                // Coast on with the release velocity
+                if (state.isMouseDragging) flywheel.release();
                 state.isMouseDragging = false;
                 state.isDragging = false;
             });
@@ -1966,8 +2072,8 @@
             // ----- TOUCH EVENTS -----
             
             jog.addEventListener('touchstart', (e) => {
-                // Stop any ongoing inertia
-                state.inertiaActive = false; 
+                // Stop any ongoing flywheel coasting
+                flywheel.reset();
                 
                 if (e.touches.length === 2) {
                     // Two-finger gesture: pinch zoom
@@ -1979,22 +2085,20 @@
                     // Track center point of two fingers
                     state.lastTouchX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
                     state.lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    
-                    if (typeof window.va !== 'undefined') {
-                        window.va('event', { name: 'zoom_started' });
-                    }
                 } else {
                     // Single-finger: timeline scrub
                     state.isDragging = true; 
                     v1.pause(); 
                     v2.pause();
-                    state.lastX = e.touches[0].clientX; 
-                    state.velocity = 0;
+                    state.lastX = e.touches[0].clientX;
                 }
             }, {passive: false});
 
             jog.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 2) {
+                    // Pinching: no scrub momentum
+                    flywheel.reset();
+                    state.isDragging = false;
                     // Pinch zoom handling
                     e.preventDefault();
                     
@@ -2028,30 +2132,21 @@
                 } else if (state.isDragging) {
                     // Single-finger scrub
                     const deltaX = e.touches[0].clientX - state.lastX;
-                    state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                     state.lastX = e.touches[0].clientX;
-                    
-                    const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
-                    if (isLocked) { 
-                        seekInstant(v1, targetTime); 
-                        requestAnimationFrame(() => seekInstant(v2, targetTime + syncDiff));
-                    } else { 
-                        seekInstant(video, targetTime); 
-                    }
-                    
-                    state.tickPos += deltaX;
-                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                    updateGlobalTicks(deltaX);
+                    flywheel.track(deltaX);
+                    scrubBy(deltaX);
                 }
             }, {passive: false});
 
-            jog.addEventListener('touchend', () => { 
-                // Apply inertia if releasing with velocity
-                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
-                    state.inertiaActive = true; 
-                    applyInertia(); 
-                }
-                state.isDragging = false; 
+            jog.addEventListener('touchend', (e) => {
+                // Coast on with the release velocity (only when the last finger lifts)
+                if (state.isDragging && e.touches.length === 0) flywheel.release();
+                state.isDragging = false;
+            });
+
+            jog.addEventListener('touchcancel', () => {
+                flywheel.reset();
+                state.isDragging = false;
             });
             
             // Double-tap to reset zoom
@@ -2060,10 +2155,6 @@
                 state.posX = 0; 
                 state.posY = 0; 
                 updateTransform(); 
-                
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'zoom_reset' });
-                }
             });
         }
 
@@ -2088,44 +2179,32 @@
             
             if (!jog || !ticks) return;
             
-            let state = { 
-                isDragging: false, 
-                lastX: 0, 
-                velocity: 0, 
-                inertiaActive: false, 
+            let state = {
+                isDragging: false,
+                lastX: 0,
                 tickPos: 0,
                 isMouseDragging: false
             };
+            const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
 
             /**
-             * Apply inertia scrolling for global jog
+             * Scrub both videos by a horizontal pixel delta (drag and flywheel)
              */
-            const applyInertia = () => {
-                if (!state.inertiaActive) return;
-                
-                if (Math.abs(state.velocity) > 0.001) {
-                    const targetTime = v1.currentTime + state.velocity;
-                    seekInstant(v1, targetTime); 
-                    seekInstant(v2, targetTime + syncDiff);
-                    
-                    state.velocity *= 0.95; 
-                    state.tickPos += (state.velocity * 1000); 
-                    
-                    // Update both global tick displays
-                    ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                    
-                    // Sync the other overlay's ticks
-                    const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
-                    const otherTicks = document.getElementById(otherId);
-                    if (otherTicks) {
-                        otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                    }
-                    
-                    requestAnimationFrame(applyInertia);
-                } else { 
-                    state.inertiaActive = false; 
+            const scrubBy = (deltaX) => {
+                seekSynced(v1.currentTime + (deltaX * 0.01));
+
+                state.tickPos += deltaX;
+                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
+
+                // Sync the other overlay's ticks
+                const otherTicks = document.getElementById(otherId);
+                if (otherTicks) {
+                    otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
                 }
             };
+
+            // Momentum after releasing the jog wheel
+            const flywheel = createFlywheel(scrubBy);
 
             // ----- MOUSE EVENTS -----
             
@@ -2134,82 +2213,52 @@
                 state.isMouseDragging = true;
                 state.isDragging = true;
                 state.lastX = e.clientX;
-                state.velocity = 0;
-                v1.pause(); 
+                flywheel.reset();
+                v1.pause();
                 v2.pause();
                 e.preventDefault();
             });
 
             document.addEventListener('mousemove', (e) => {
                 if (!state.isMouseDragging) return;
-                
                 const deltaX = e.clientX - state.lastX;
-                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.clientX;
-                
-                const targetTime = v1.currentTime + (deltaX * 0.01);
-                seekInstant(v1, targetTime); 
-                seekInstant(v2, targetTime + syncDiff);
-                
-                state.tickPos += deltaX;
-                
-                // Update both tick displays
-                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
-                const otherTicks = document.getElementById(otherId);
-                if (otherTicks) {
-                    otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                }
+                flywheel.track(deltaX);
+                scrubBy(deltaX);
             });
 
             document.addEventListener('mouseup', () => {
-                if (state.isMouseDragging && Math.abs(state.velocity) > 0.001) {
-                    state.inertiaActive = true;
-                    applyInertia();
-                }
+                if (state.isMouseDragging) flywheel.release();
                 state.isMouseDragging = false;
                 state.isDragging = false;
             });
 
             // ----- TOUCH EVENTS -----
-            
+
             jog.addEventListener('touchstart', (e) => {
-                state.inertiaActive = false; 
-                state.isDragging = true; 
-                v1.pause(); 
+                flywheel.reset();
+                state.isDragging = true;
+                v1.pause();
                 v2.pause();
-                state.lastX = e.touches[0].clientX; 
-                state.velocity = 0;
+                state.lastX = e.touches[0].clientX;
             }, {passive: false});
 
             jog.addEventListener('touchmove', (e) => {
                 if (!state.isDragging) return;
-                
                 const deltaX = e.touches[0].clientX - state.lastX;
-                state.velocity = deltaX * (SCRUB_SENSITIVITY / window.innerWidth);
                 state.lastX = e.touches[0].clientX;
-                
-                const targetTime = v1.currentTime + (deltaX * 0.01);
-                seekInstant(v1, targetTime); 
-                seekInstant(v2, targetTime + syncDiff);
-                
-                state.tickPos += deltaX;
-                ticks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                
-                // Sync other overlay
-                const otherId = ticksId === 'ticksGlobal1' ? 'ticksGlobal2' : 'ticksGlobal1';
-                const otherTicks = document.getElementById(otherId);
-                if (otherTicks) {
-                    otherTicks.style.transform = `translateX(${state.tickPos % 200}px)`;
-                }
+                flywheel.track(deltaX);
+                scrubBy(deltaX);
             }, {passive: false});
 
-            jog.addEventListener('touchend', () => { 
-                if (state.isDragging && Math.abs(state.velocity) > 0.001) { 
-                    state.inertiaActive = true; 
-                    applyInertia(); 
-                }
-                state.isDragging = false; 
+            jog.addEventListener('touchend', (e) => {
+                if (state.isDragging && e.touches.length === 0) flywheel.release();
+                state.isDragging = false;
+            });
+
+            jog.addEventListener('touchcancel', () => {
+                flywheel.reset();
+                state.isDragging = false;
             });
         }
         

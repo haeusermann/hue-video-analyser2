@@ -64,12 +64,17 @@
         :root {
             /* Safe area inset for devices with notches/home indicators */
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+            /* Shared width of the speed selector and the sync lock button */
+            --ctrl-wide: 50px;
         }
         
         /* ============================================================= */
         /* BODY STYLES - Base layout and mobile optimization             */
         /* ============================================================= */
         body {
+            /* No default 8px browser margin: with height 100dvh it would push
+               the bottom of the app (jog ticks, sync panel) off the screen */
+            margin: 0;
             /* Prevent pull-to-refresh and overscroll effects */
             overscroll-behavior-y: contain;
             /* Disable default touch actions for custom gesture handling */
@@ -138,8 +143,12 @@
         }
 
         /* Single video mode - full width single column */
-        .mode-single { 
-            grid-template-columns: 1fr; 
+        .mode-single {
+            grid-template-columns: 1fr;
+            /* Keep the jog ticks and controls above the iPhone home indicator
+               (in dual mode the sync panel below takes care of this) */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            background-color: #000;
         }
         
         /* Dual video mode - stacked vertically by default (portrait) */
@@ -353,6 +362,33 @@
             cursor: pointer;
         }
 
+        /* Single / side-by-side toggle: one line, width of the longer label */
+        .glass-btn.mode-btn {
+            display: grid;
+            white-space: nowrap;
+        }
+
+        .mode-btn > span {
+            grid-area: 1 / 1;
+            text-align: center;
+        }
+
+        .mode-btn > .label-inactive {
+            visibility: hidden;
+        }
+
+        /* VIDEO button while no video is loaded: red, same tone as the
+           light blue play button (red-400 vs. blue-400), dark text */
+        .glass-btn.video-btn.no-video {
+            background: #f87171;
+            border-color: rgba(255, 255, 255, 0.35);
+            color: #0f172a;
+        }
+
+        .glass-btn.video-btn.no-video:active {
+            background: #ef4444;
+        }
+
         /* Active/pressed state for glass buttons */
         .glass-btn:active { 
             transform: scale(0.95); 
@@ -393,6 +429,62 @@
             /* Highlight color when held */
             -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
         }
+
+        /* Fixed height (matches the speed selector), larger arrow icons */
+        .frame-step-btn {
+            box-sizing: border-box;
+            height: 30px;
+            padding: 0 9px;
+        }
+
+        .frame-step-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Go-to-start and sync-lock buttons: same height as the frame step
+           buttons and the speed selector (34px from 641px width) */
+        .start-btn,
+        .lock-btn {
+            box-sizing: border-box;
+            height: 30px;
+            padding: 0 10px;
+        }
+
+        .start-btn svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        /* ============================================================= */
+        /* SYNC LOCK BUTTON - gold accent (amber-400, same tone level as */
+        /* the light blue play button), same width as the speed selector */
+        /* ============================================================= */
+        .glass-btn.lock-btn {
+            width: var(--ctrl-wide);
+            padding: 0;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1.5px solid rgba(251, 191, 36, 0.7);
+            color: #fbbf24;
+        }
+
+        .lock-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Locked: filled gold, dark closed padlock, soft glow */
+        .glass-btn.lock-btn.active {
+            background: #fbbf24;
+            border-color: rgba(255, 255, 255, 0.45);
+            color: #0f172a;
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.45);
+        }
+
+        /* Show the open or closed padlock depending on the state */
+        .lock-btn .icon-locked { display: none; }
+        .lock-btn.active .icon-locked { display: block; }
+        .lock-btn.active .icon-unlocked { display: none; }
 
         /* Pressed state for frame step buttons */
         .frame-step-btn:active { 
@@ -448,16 +540,31 @@
         /* ============================================================= */
         select.glass-select {
             background: rgba(15, 23, 42, 0.8);
-            color: #60a5fa;
+            color: #fff;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 11px;
-            font-weight: 800;
-            padding: 4px 8px;
+            /* Fraction glyphs (½ ¼ ⅛) as large as the button height allows */
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 500;
+            /* Same height as the frame step buttons (34px from 641px width) */
+            box-sizing: border-box;
+            height: 30px;
+            padding: 0 8px;
+            text-align: center;
             border-radius: 8px;
+            width: var(--ctrl-wide);
             outline: none;
             /* Remove default dropdown arrow */
             appearance: none;
             cursor: pointer;
+        }
+
+        /* Opened list (desktop): dark background, otherwise the white text
+           would be invisible on the browser's default white list */
+        select.glass-select option {
+            background: #0f172a;
+            color: #fff;
         }
 
         /* Hidden file input - triggered by visible button */
@@ -490,22 +597,37 @@
             margin: 0 auto;
         }
 
-        /* Sync play button - larger and highlighted */
-        .sync-play-btn {
-            background: rgba(37, 99, 235, 0.8);
-            height: 40px;
+        /* ============================================================= */
+        /* PLAY BUTTONS - Round, slightly larger, uniform light blue     */
+        /* (Player 1, Player 2 and the sync play button)                */
+        /* ============================================================= */
+        .play-btn {
             width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: #60a5fa;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            /* Dark icon on light blue for good contrast */
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+            transition: transform 0.15s, background 0.15s;
         }
 
-        /* Utility height class */
-        .h-10 {
-            height: 40px;
+        /* Large play / pause icon (also applies to the icons swapped in by JS) */
+        .play-btn svg {
+            width: 36px;
+            height: 36px;
         }
 
-        /* Utility padding class */
-        .px-3 {
-            padding-left: 12px;
-            padding-right: 12px;
+        .play-btn:active {
+            transform: scale(0.94);
+            background: #3b82f6;
         }
 
         /* Speed selector container in sync panel */
@@ -513,11 +635,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(15, 23, 42, 0.5);
-            padding: 0 4px;
-            height: 40px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         /* ============================================================= */
@@ -551,11 +668,11 @@
             pointer-events: auto;
         }
 
+        /* Same regular 8px spacing as the player control rows */
         .sync-frame-controls {
             display: flex;
-            gap: 4px;
+            gap: 8px;
             align-items: center;
-            margin: 0 8px;
         }
 
         /* ============================================================= */
@@ -564,7 +681,24 @@
         @media (min-width: 641px) {
             /* Larger buttons on tablet/desktop */
             .frame-step-btn {
-                padding: 8px 12px;
+                height: 34px;
+                padding: 0 11px;
+            }
+
+            .start-btn,
+            .lock-btn {
+                height: 34px;
+                padding: 0 12px;
+            }
+
+            /* Speed selector keeps the height of the frame step buttons */
+            :root {
+                --ctrl-wide: 56px;
+            }
+
+            select.glass-select {
+                height: 34px;
+                font-size: 23px;
             }
         }
     </style>
@@ -595,8 +729,11 @@
             <!-- Top Left Controls: Mode toggle and fullscreen -->
             <div class="ui-overlay top-left" style="flex-direction: column;">
                 <!-- Toggle between single and dual video mode -->
-                <button onclick="toggleCompareMode()" id="compareBtn" class="glass-btn shadow-xl min-w-[70px]">
-                    <span id="compareBtnText">DUAL</span>
+                <!-- Both labels share one grid cell, so the button always has the
+                     width of the longer one and does not jump when switching -->
+                <button onclick="toggleCompareMode()" id="compareBtn" class="glass-btn mode-btn" title="Switch single / side-by-side view">
+                    <span id="labelSideBySide">SIDE-BY-SIDE</span>
+                    <span id="labelSingle" class="label-inactive">SINGLE</span>
                 </button>
                 <!-- Fullscreen toggle button with dynamic icon -->
                 <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Toggle fullscreen">
@@ -623,7 +760,7 @@
 
             <!-- Top Right: Video file selector -->
             <div class="ui-overlay top-right">
-                <button onclick="document.getElementById('fileInput1').click()" class="glass-btn shadow-lg">
+                <button onclick="document.getElementById('fileInput1').click()" id="videoBtn1" class="glass-btn video-btn no-video" title="Load video">
                     VIDEO
                 </button>
                 <input type="file" accept="video/*" id="fileInput1" class="hidden-file-input" onchange="loadVideo(event, 'main')">
@@ -632,7 +769,7 @@
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls1">
                 <!-- Jump to start of video - line with left arrow icon -->
-                <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn" title="Go to start">
+                <button onclick="goToStartSingle(1)" id="goStartBtn1" class="glass-btn start-btn" title="Go to start">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <path d="M6 6v12"/>
                         <path d="M20 12H10M15 17l-5-5 5-5"/>
@@ -652,13 +789,13 @@
                 </button>
                 <!-- Playback speed selector -->
                 <select onchange="setSpeed('v1', this.value)" id="speed1" class="glass-select">
-                    <option value="0.125">0.12x</option>
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.50x</option>
-                    <option value="1.0" selected>1.00x</option>
+                    <option value="0.125">⅛x</option>
+                    <option value="0.25">¼x</option>
+                    <option value="0.5">½x</option>
+                    <option value="1.0" selected>1x</option>
                 </select>
                 <!-- Play/Pause toggle button -->
-                <button onclick="togglePlay('v1')" id="playBtn1" class="glass-btn bg-blue-600/80 w-12 h-12 rounded-full">
+                <button onclick="togglePlay('v1')" id="playBtn1" class="play-btn" title="Play / Pause">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
             </div>
@@ -703,7 +840,7 @@
 
             <!-- Top Right: Video file selector -->
             <div class="ui-overlay top-right">
-                <button onclick="document.getElementById('fileInput2').click()" class="glass-btn shadow-lg">
+                <button onclick="document.getElementById('fileInput2').click()" id="videoBtn2" class="glass-btn video-btn no-video" title="Load video">
                     VIDEO
                 </button>
                 <input type="file" accept="video/*" id="fileInput2" class="hidden-file-input" onchange="loadVideo(event, 'compare')">
@@ -712,7 +849,7 @@
             <!-- Bottom Right: Playback controls with frame stepping -->
             <div class="ui-overlay bottom-right" id="controls2">
                 <!-- Jump to start of video - line with left arrow icon -->
-                <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn" title="Go to start">
+                <button onclick="goToStartSingle(2)" id="goStartBtn2" class="glass-btn start-btn" title="Go to start">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <path d="M6 6v12"/>
                         <path d="M20 12H10M15 17l-5-5 5-5"/>
@@ -732,13 +869,13 @@
                 </button>
                 <!-- Playback speed selector -->
                 <select onchange="setSpeed('v2', this.value)" id="speed2" class="glass-select">
-                    <option value="0.125">0.12x</option>
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.50x</option>
-                    <option value="1.0" selected>1.00x</option>
+                    <option value="0.125">⅛x</option>
+                    <option value="0.25">¼x</option>
+                    <option value="0.5">½x</option>
+                    <option value="1.0" selected>1x</option>
                 </select>
                 <!-- Play/Pause toggle button -->
-                <button onclick="togglePlay('v2')" id="playBtn2" class="glass-btn w-12 h-10 rounded-full">
+                <button onclick="togglePlay('v2')" id="playBtn2" class="play-btn" title="Play / Pause">
                     <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
             </div>
@@ -773,7 +910,7 @@
     <div id="syncPanel" style="display: none;">
         <div>
             <!-- Jump to start button (synced) - line with left arrow icon -->
-            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn h-10 px-3" title="Go to start">
+            <button onclick="goToStart()" id="btnGoToStart" class="glass-btn start-btn" title="Go to start">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                     <path d="M6 6v12"/>
                     <path d="M20 12H10M15 17l-5-5 5-5"/>
@@ -797,23 +934,34 @@
             </div>
             
             <!-- Sync play/pause button -->
-            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="glass-btn sync-play-btn">
-                <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <button onclick="toggleSyncPlay()" id="syncPlayBtn" class="play-btn" title="Play / Pause both">
+                <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
 
             <!-- Global speed selector -->
             <div class="speed-container">
                 <select onchange="setGlobalSpeed(this.value)" id="globalSpeed" class="glass-select">
-                    <option value="0.125">0.12x</option>
-                    <option value="0.25">0.25x</option>
-                    <option value="0.5">0.50x</option>
-                    <option value="1.0" selected>1.00x</option>
+                    <option value="0.125">⅛x</option>
+                    <option value="0.25">¼x</option>
+                    <option value="0.5">½x</option>
+                    <option value="1.0" selected>1x</option>
                 </select>
             </div>
             
             <!-- Sync lock toggle button -->
-            <button onclick="toggleLock()" id="lockBtn" class="glass-btn h-10 px-3">
-                <svg id="lockIconOpen" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+            <!-- Sync lock: gold accent; open padlock = not synced, closed = synced -->
+            <button onclick="toggleLock()" id="lockBtn" class="glass-btn lock-btn" title="Sync lock: off" aria-pressed="false">
+                <!-- Open: shackle swung 180° around its left leg, hanging beside the body -->
+                <svg class="icon-unlocked" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <rect x="8" y="11" width="14" height="10" rx="2"/>
+                    <path d="M11 11V7a4 4 0 0 0-8 0v2"/>
+                    <path d="M15 15v2"/>
+                </svg>
+                <svg class="icon-locked" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                    <rect x="5" y="11" width="14" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                    <path d="M12 15v2"/>
+                </svg>
             </button>
         </div>
     </div>
@@ -1137,6 +1285,11 @@
             });
             // Keep play/pause icons in sync with the real state
             ['play', 'pause', 'ended'].forEach(ev => video.addEventListener(ev, updatePlayIcons));
+            // VIDEO button is red while no video is loaded in this player
+            const videoBtn = document.getElementById(video === v1 ? 'videoBtn1' : 'videoBtn2');
+            video.addEventListener('loadedmetadata', () => videoBtn.classList.remove('no-video'));
+            video.addEventListener('emptied', () => videoBtn.classList.add('no-video'));
+            video.addEventListener('error', () => videoBtn.classList.add('no-video'));
         });
 
         // =================================================================
@@ -1280,9 +1433,18 @@
         // COMPARE MODE TOGGLE
         // Switch between single and dual video display
         // =================================================================
-        
+
         /**
-         * Toggle between single and dual video mode
+         * Show the label of the mode the button switches to
+         * @param {'sideBySide'|'single'} target
+         */
+        function setModeLabel(target) {
+            document.getElementById('labelSideBySide').classList.toggle('label-inactive', target !== 'sideBySide');
+            document.getElementById('labelSingle').classList.toggle('label-inactive', target !== 'single');
+        }
+
+        /**
+         * Toggle between single and dual (side-by-side) video mode
          * Updates UI, shows/hides Player 2 and sync panel
          */
         function toggleCompareMode() {
@@ -1292,7 +1454,7 @@
                 // Switch to dual mode
                 document.getElementById('player2').style.display = 'flex';
                 document.getElementById('syncPanel').style.display = 'block';
-                document.getElementById('compareBtnText').innerText = 'SINGLE';
+                setModeLabel('single');
                 workbench.className = 'mode-dual';
                 // Sync playback speeds
                 setGlobalSpeed(document.getElementById('globalSpeed').value);
@@ -1304,7 +1466,7 @@
                 v2.pause();
                 document.getElementById('player2').style.display = 'none';
                 document.getElementById('syncPanel').style.display = 'none';
-                document.getElementById('compareBtnText').innerText = 'DUAL';
+                setModeLabel('sideBySide');
                 workbench.className = 'mode-single';
             }
             updatePlayIcons();
@@ -1524,7 +1686,9 @@
                 // Calculate and store time difference between videos
                 syncDiff = v2.currentTime - v1.currentTime;
                 btn.classList.add('active');
-                
+                btn.title = 'Sync lock: on';
+                btn.setAttribute('aria-pressed', 'true');
+
                 // Sync play state
                 if (v1.paused) v2.pause(); 
                 else v2.play();
@@ -1536,7 +1700,9 @@
                 document.body.classList.add('sync-locked');
             } else {
                 btn.classList.remove('active');
-                
+                btn.title = 'Sync lock: off';
+                btn.setAttribute('aria-pressed', 'false');
+
                 // Deactivate sync-lock UI mode
                 document.body.classList.remove('sync-locked');
             }

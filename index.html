@@ -804,8 +804,8 @@
     <!-- ================================================================= -->
     <script>
         // =================================================================
-        // VERCEL ANALYTICS INITIALIZATION
-        // Tracks app launches and user interactions for analytics
+        // GOATCOUNTER EVENT TRACKING
+        // Tracks app launches (PWA) as events in GoatCounter
         // =================================================================
         
         window.addEventListener('load', () => {
@@ -816,9 +816,20 @@
             // Track PWA launches separately from browser visits
             if (isPWA) {
                 console.log("App launched as PWA");
-                if (typeof window.va !== 'undefined') {
-                    window.va('event', { name: 'pwa_open' });
-                }
+                // count.js loads async, so wait until it is available
+                let tries = 0;
+                const sendPwaEvent = () => {
+                    if (window.goatcounter && typeof window.goatcounter.count === 'function') {
+                        window.goatcounter.count({
+                            path: 'pwa_open',
+                            title: 'PWA opened',
+                            event: true
+                        });
+                    } else if (tries++ < 20) {
+                        setTimeout(sendPwaEvent, 500);
+                    }
+                };
+                sendPwaEvent();
             }
 
             // Hide splash screen after 2 second delay

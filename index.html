@@ -128,9 +128,10 @@
         }
 
         /* ============================================================= */
-        /* WHAT'S NEW SCREEN - shown after the splash, once per version  */
+        /* OVERLAY SCREENS - "What's new" (after the splash, once per    */
+        /* version) and the help screen (info button) share this style   */
         /* ============================================================= */
-        #whats-new {
+        .overlay-screen {
             position: fixed;
             inset: 0;
             /* Below the splash screen, above everything else */
@@ -159,9 +160,50 @@
             background: linear-gradient(to top, #000 55%, rgba(0, 0, 0, 0));
         }
 
-        #whats-new.closing {
+        .overlay-screen.closing {
             opacity: 0;
             pointer-events: none;
+        }
+
+        .overlay-screen[hidden] {
+            display: none;
+        }
+
+        /* Help screen: switch between touch and mouse & keyboard */
+        .help-mode {
+            display: inline-flex;
+            gap: 4px;
+            padding: 4px;
+            margin: 0 0 18px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .help-mode button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 36px;
+            padding: 0 14px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .help-mode button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .help-mode button.active {
+            background: #60a5fa;
+            color: #0f172a;
         }
 
         .wn-card {
@@ -547,6 +589,12 @@
             cursor: pointer;
         }
 
+        /* Fullscreen + info buttons side by side below the mode button */
+        .top-left-row {
+            display: flex;
+            gap: 8px;
+        }
+
         /* Single / side-by-side toggle: one line, width of the longer label */
         .glass-btn.mode-btn {
             display: grid;
@@ -904,7 +952,7 @@
     <!-- Shown after the splash screen, once per version (see JS)          -->
     <!-- ================================================================= -->
     <!-- German is the default text; other languages come from WHATS_NEW_TEXT (JS) -->
-    <div id="whats-new" role="dialog" aria-modal="true" aria-labelledby="wn-title" lang="de">
+    <div id="whats-new" class="overlay-screen" role="dialog" aria-modal="true" aria-labelledby="wn-title" lang="de">
         <div class="wn-card">
             <!-- Language switcher -->
             <div class="wn-lang" role="group" aria-label="Sprache / Language">
@@ -966,6 +1014,47 @@
     </div>
 
     <!-- ================================================================= -->
+    <!-- HELP / INFO SCREEN                                                -->
+    <!-- Opened with the info button. Explains touch or mouse & keyboard   -->
+    <!-- operation; the list is filled from HELP_TEXT (JS) per language.   -->
+    <!-- ================================================================= -->
+    <div id="help-screen" class="overlay-screen" role="dialog" aria-modal="true" aria-labelledby="help-title" lang="de" hidden>
+        <div class="wn-card">
+            <!-- Language switcher (shared with the what's new screen) -->
+            <div class="wn-lang" role="group" aria-label="Sprache / Language">
+                <button type="button" data-lang="de" lang="de" title="Deutsch" aria-pressed="true" class="active">DE</button>
+                <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
+                <button type="button" data-lang="fr" lang="fr" title="Français" aria-pressed="false">FR</button>
+                <button type="button" data-lang="it" lang="it" title="Italiano" aria-pressed="false">IT</button>
+            </div>
+            <img src="Logo.png" alt="" class="wn-logo">
+            <h2 id="help-title" data-help="title">Bedienung</h2>
+            <p class="wn-subtitle" data-help="subtitle">So funktioniert der Video Analyser</p>
+
+            <!-- Touch or mouse & keyboard -->
+            <div class="help-mode" role="group">
+                <button type="button" data-mode="touch" aria-pressed="true" class="active">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+                    <span data-help="modeTouch">Touch</span>
+                </button>
+                <button type="button" data-mode="desktop" aria-pressed="false">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/></svg>
+                    <span data-help="modeDesktop">Maus &amp; Tastatur</span>
+                </button>
+            </div>
+
+            <ul class="wn-list" id="help-list"></ul>
+
+            <div class="wn-footer">
+                <button id="help-close" class="wn-start" type="button">
+                    <span data-help="close">Verstanden</span>
+                    <svg fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
     <!-- MAIN WORKBENCH - Video player grid                                -->
     <!-- Contains one or two video players depending on mode               -->
     <!-- ================================================================= -->
@@ -977,7 +1066,7 @@
         <!-- ============================================================= -->
         <div id="player1" class="video-container">
             
-            <!-- Top Left Controls: Mode toggle and fullscreen -->
+            <!-- Top Left Controls: Mode toggle, below it fullscreen + info side by side -->
             <div class="ui-overlay top-left" style="flex-direction: column;">
                 <!-- Toggle between single and dual video mode -->
                 <!-- Both labels share one grid cell, so the button always has the
@@ -986,17 +1075,27 @@
                     <span id="labelSideBySide">SIDE-BY-SIDE</span>
                     <span id="labelSingle" class="label-inactive">SINGLE</span>
                 </button>
-                <!-- Fullscreen toggle button with dynamic icon -->
-                <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn shadow-lg" title="Toggle fullscreen">
-                    <!-- Expand icon (shown when not fullscreen) -->
-                    <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
-                    </svg>
-                    <!-- Compress icon (shown when in fullscreen) -->
-                    <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
-                        <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
-                    </svg>
-                </button>
+                <div class="top-left-row">
+                    <!-- Fullscreen toggle button with dynamic icon -->
+                    <button onclick="toggleFullscreen()" id="fullscreenBtn" class="glass-btn" title="Toggle fullscreen">
+                        <!-- Expand icon (shown when not fullscreen) -->
+                        <svg id="fullscreenIconExpand" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M4 4h5M4 4v5M4 4l5 5M20 4h-5M20 4v5M20 4l-5 5M4 20h5M4 20v-5M4 20l5-5M20 20h-5M20 20v-5M20 20l-5-5"/>
+                        </svg>
+                        <!-- Compress icon (shown when in fullscreen) -->
+                        <svg id="fullscreenIconCompress" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M9 9H4M9 9V4M9 9L4 4M15 9h5M15 9V4M15 9l5-5M9 15H4M9 15v5M9 15l-5 5M15 15h5M15 15v5M15 15l5 5"/>
+                        </svg>
+                    </button>
+                    <!-- Info button: opens the help screen (touch / mouse & keyboard) -->
+                    <button onclick="openHelp()" id="infoBtn" class="glass-btn" title="Info / Help" aria-haspopup="dialog">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="9"/>
+                            <path d="M12 11v6"/>
+                            <path d="M12 7.5h.01" stroke-width="3"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Top Center: Time display with reset button -->
@@ -1345,44 +1444,266 @@
             },
         };
 
+        // =================================================================
+        // HELP SCREEN TEXTS (info button)
+        // Each item: [title, description]. Touch and desktop lists below.
+        // =================================================================
+
+        const HELP_ICONS = {
+            video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/>',
+            scrub: '<path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
+            frame: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M16 5v14M3 12h5M16 12h5"/>',
+            zoom: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 8v5M8 10.5h5"/>',
+            pan: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+            play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
+            sync: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><path d="M12 15v2"/>',
+            timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+            fullscreen: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+        };
+
+        // Order and icons of the items per operating mode
+        const HELP_ITEMS = {
+            touch: [['loadT', 'video'], ['scrubT', 'scrub'], ['stepT', 'frame'], ['zoomT', 'zoom'],
+                    ['playT', 'play'], ['syncT', 'sync'], ['timer', 'timer'], ['fullscreenT', 'fullscreen']],
+            desktop: [['loadD', 'video'], ['scrubD', 'scrub'], ['stepD', 'frame'], ['zoomD', 'zoom'],
+                      ['panD', 'pan'], ['playD', 'play'], ['syncD', 'sync'], ['timer', 'timer']],
+        };
+
+        const HELP_TEXT = {
+            de: {
+                title: 'Bedienung',
+                subtitle: 'So funktioniert der Video Analyser',
+                modeTouch: 'Touch',
+                modeDesktop: 'Maus & Tastatur',
+                close: 'Verstanden',
+                loadT: ['Video laden', 'VIDEO antippen und einen Clip wählen. Der Button ist rot, solange im Player noch kein Video geladen ist.'],
+                loadD: ['Video laden', 'Auf VIDEO klicken und einen Clip wählen. Der Button ist rot, solange im Player noch kein Video geladen ist.'],
+                scrubT: ['Durch das Video fahren', 'Mit einem Finger nach links oder rechts über das Video wischen. Mit Schwung loslassen, dann läuft es aus – ein Tippen stoppt es.'],
+                scrubD: ['Durch das Video fahren', 'Mit gedrückter linker Maustaste nach links oder rechts ziehen. Mit Schwung loslassen, dann läuft es aus – ein Klick stoppt es.'],
+                stepT: ['Bild für Bild', '← / → antippen für genau ein Bild zurück oder vor. Gedrückt halten für Zeitlupe (¼-Tempo) rückwärts oder vorwärts.'],
+                stepD: ['Bild für Bild', 'Pfeiltasten ← / → oder die Pfeil-Buttons: genau ein Bild. Einen Button gedrückt halten für Zeitlupe (¼-Tempo).'],
+                zoomT: ['Zoomen & Verschieben', 'Zwei Finger auseinanderziehen zum Zoomen, mit zwei Fingern verschieben. Doppeltippen setzt den Zoom zurück.'],
+                zoomD: ['Zoomen', 'Das Mausrad zoomt zum Mauszeiger hin, auf dem Trackpad zwei Finger auseinanderziehen. Tasten + / − / 0, Doppelklick setzt zurück.'],
+                panD: ['Ausschnitt verschieben', 'Im gezoomten Bild mit gedrückter rechter Maustaste ziehen, auf dem Trackpad mit zwei Fingern scrollen oder Shift + Pfeiltasten.'],
+                playT: ['Abspielen & Tempo', 'Der runde blaue Button startet und stoppt. Geschwindigkeit von ⅛x bis 1x wählbar, |⁠← springt an den Anfang.'],
+                playD: ['Abspielen & Tempo', 'Leertaste oder der runde blaue Button: Play / Pause. Geschwindigkeit von ⅛x bis 1x, |⁠← springt an den Anfang.'],
+                syncT: ['Zwei Videos vergleichen', 'SIDE-BY-SIDE zeigt zwei Videos. Beide auf denselben Moment stellen und das goldene Schloss antippen – danach bewegen sie sich gemeinsam.'],
+                syncD: ['Zwei Videos vergleichen', 'SIDE-BY-SIDE zeigt zwei Videos. Beide auf denselben Moment stellen und das goldene Schloss anklicken – danach bewegen sie sich gemeinsam. Die Zoom-Tasten wirken auf das Video unter dem Mauszeiger.'],
+                timer: ['Zeit messen', 'Der Knopf neben der Zeitanzeige setzt die Zeit beim aktuellen Bild auf null – ideal, um Bewegungsabläufe zu messen.'],
+                fullscreenT: ['Vollbild', 'Der Vollbild-Button nutzt den ganzen Bildschirm. Auf dem iPhone die App über «Teilen › Zum Home-Bildschirm» hinzufügen.'],
+            },
+            en: {
+                title: 'How to use',
+                subtitle: 'How Video Analyser works',
+                modeTouch: 'Touch',
+                modeDesktop: 'Mouse & keyboard',
+                close: 'Got it',
+                loadT: ['Load a video', 'Tap VIDEO and choose a clip. The button stays red while the player has no video.'],
+                loadD: ['Load a video', 'Click VIDEO and choose a clip. The button stays red while the player has no video.'],
+                scrubT: ['Move through the video', 'Swipe left or right across the video with one finger. Let go with a flick and it keeps coasting – a tap stops it.'],
+                scrubD: ['Move through the video', 'Drag left or right with the left mouse button. Let go with momentum and it keeps coasting – a click stops it.'],
+                stepT: ['Frame by frame', 'Tap ← / → for exactly one frame back or forward. Hold for slow motion (¼ speed) backwards or forwards.'],
+                stepD: ['Frame by frame', 'Arrow keys ← / → or the arrow buttons: exactly one frame. Hold a button for slow motion (¼ speed).'],
+                zoomT: ['Zoom & move', 'Spread two fingers to zoom, move with two fingers. Double-tap resets the zoom.'],
+                zoomD: ['Zoom', 'The mouse wheel zooms towards the cursor; on a trackpad, spread two fingers. Keys + / − / 0, double-click resets.'],
+                panD: ['Move the zoomed view', 'Drag with the right mouse button, scroll with two fingers on a trackpad, or use Shift + arrow keys.'],
+                playT: ['Play & speed', 'The round blue button plays and pauses. Choose a speed from ⅛x to 1x; |⁠← jumps to the start.'],
+                playD: ['Play & speed', 'Space or the round blue button: play / pause. Speed from ⅛x to 1x; |⁠← jumps to the start.'],
+                syncT: ['Compare two videos', 'SIDE-BY-SIDE shows two videos. Set both to the same moment and tap the gold lock – from then on they move together.'],
+                syncD: ['Compare two videos', 'SIDE-BY-SIDE shows two videos. Set both to the same moment and click the gold lock – from then on they move together. Zoom keys act on the video under the mouse.'],
+                timer: ['Measure time', 'The button next to the time display sets the time to zero at the current frame – ideal for timing a movement.'],
+                fullscreenT: ['Full screen', 'The full-screen button uses the whole screen. On iPhone, add the app via “Share › Add to Home Screen”.'],
+            },
+            fr: {
+                title: 'Mode d’emploi',
+                subtitle: 'Comment fonctionne Video Analyser',
+                modeTouch: 'Tactile',
+                modeDesktop: 'Souris et clavier',
+                close: 'Compris',
+                loadT: ['Charger une vidéo', 'Touchez VIDEO et choisissez un clip. Le bouton reste rouge tant que le lecteur n’a pas de vidéo.'],
+                loadD: ['Charger une vidéo', 'Cliquez sur VIDEO et choisissez un clip. Le bouton reste rouge tant que le lecteur n’a pas de vidéo.'],
+                scrubT: ['Parcourir la vidéo', 'Glissez un doigt vers la gauche ou la droite sur la vidéo. Relâchez avec élan et elle continue sur sa lancée – un toucher l’arrête.'],
+                scrubD: ['Parcourir la vidéo', 'Faites glisser vers la gauche ou la droite avec le bouton gauche de la souris. Relâchez avec élan et elle continue – un clic l’arrête.'],
+                stepT: ['Image par image', 'Touchez ← / → pour reculer ou avancer d’exactement une image. Maintenez pour un ralenti (vitesse ¼) en arrière ou en avant.'],
+                stepD: ['Image par image', 'Touches fléchées ← / → ou boutons fléchés : exactement une image. Maintenez un bouton pour un ralenti (vitesse ¼).'],
+                zoomT: ['Zoomer et déplacer', 'Écartez deux doigts pour zoomer, déplacez avec deux doigts. Un double toucher réinitialise le zoom.'],
+                zoomD: ['Zoomer', 'La molette zoome vers le curseur ; sur un pavé tactile, écartez deux doigts. Touches + / − / 0, un double-clic réinitialise.'],
+                panD: ['Déplacer l’image zoomée', 'Faites glisser avec le bouton droit, faites défiler à deux doigts sur le pavé tactile ou utilisez Maj + flèches.'],
+                playT: ['Lecture et vitesse', 'Le bouton bleu rond lance et met en pause. Vitesse de ⅛x à 1x ; |⁠← revient au début.'],
+                playD: ['Lecture et vitesse', 'Espace ou le bouton bleu rond : lecture / pause. Vitesse de ⅛x à 1x ; |⁠← revient au début.'],
+                syncT: ['Comparer deux vidéos', 'SIDE-BY-SIDE affiche deux vidéos. Placez-les au même moment puis touchez le cadenas doré – elles avancent alors ensemble.'],
+                syncD: ['Comparer deux vidéos', 'SIDE-BY-SIDE affiche deux vidéos. Placez-les au même moment puis cliquez sur le cadenas doré – elles avancent alors ensemble. Les touches de zoom agissent sur la vidéo sous la souris.'],
+                timer: ['Mesurer le temps', 'Le bouton à côté de l’affichage du temps remet le temps à zéro sur l’image actuelle – idéal pour chronométrer un mouvement.'],
+                fullscreenT: ['Plein écran', 'Le bouton plein écran utilise tout l’écran. Sur iPhone, ajoutez l’app via « Partager › Sur l’écran d’accueil ».'],
+            },
+            it: {
+                title: 'Istruzioni',
+                subtitle: 'Come funziona Video Analyser',
+                modeTouch: 'Touch',
+                modeDesktop: 'Mouse e tastiera',
+                close: 'Ho capito',
+                loadT: ['Caricare un video', 'Tocca VIDEO e scegli una clip. Il pulsante resta rosso finché il lettore non ha un video.'],
+                loadD: ['Caricare un video', 'Clicca su VIDEO e scegli una clip. Il pulsante resta rosso finché il lettore non ha un video.'],
+                scrubT: ['Scorrere il video', 'Scorri con un dito verso sinistra o destra sul video. Rilascia con slancio e continua a scorrere – un tocco lo ferma.'],
+                scrubD: ['Scorrere il video', 'Trascina a sinistra o a destra tenendo premuto il tasto sinistro del mouse. Rilascia con slancio e continua – un clic lo ferma.'],
+                stepT: ['Fotogramma per fotogramma', 'Tocca ← / → per tornare indietro o avanzare di esattamente un fotogramma. Tieni premuto per il rallentatore (velocità ¼).'],
+                stepD: ['Fotogramma per fotogramma', 'Tasti freccia ← / → o i pulsanti freccia: esattamente un fotogramma. Tieni premuto un pulsante per il rallentatore (velocità ¼).'],
+                zoomT: ['Zoom e spostamento', 'Allarga due dita per ingrandire, sposta con due dita. Un doppio tocco ripristina lo zoom.'],
+                zoomD: ['Zoom', 'La rotellina ingrandisce verso il cursore; sul trackpad allarga due dita. Tasti + / − / 0, il doppio clic ripristina.'],
+                panD: ['Spostare l’immagine ingrandita', 'Trascina con il tasto destro del mouse, scorri con due dita sul trackpad oppure usa Maiusc + frecce.'],
+                playT: ['Riproduzione e velocità', 'Il pulsante blu rotondo avvia e mette in pausa. Velocità da ⅛x a 1x; |⁠← torna all’inizio.'],
+                playD: ['Riproduzione e velocità', 'Spazio o il pulsante blu rotondo: play / pausa. Velocità da ⅛x a 1x; |⁠← torna all’inizio.'],
+                syncT: ['Confrontare due video', 'SIDE-BY-SIDE mostra due video. Portali allo stesso momento e tocca il lucchetto dorato – da quel momento si muovono insieme.'],
+                syncD: ['Confrontare due video', 'SIDE-BY-SIDE mostra due video. Portali allo stesso momento e clicca sul lucchetto dorato – da quel momento si muovono insieme. I tasti di zoom agiscono sul video sotto il mouse.'],
+                timer: ['Misurare il tempo', 'Il pulsante accanto all’indicazione del tempo azzera il tempo sul fotogramma attuale – ideale per cronometrare un movimento.'],
+                fullscreenT: ['Schermo intero', 'Il pulsante schermo intero usa tutto lo schermo. Su iPhone aggiungi l’app con «Condividi › Aggiungi alla schermata Home».'],
+            },
+        };
+
+        // =================================================================
+        // APP LANGUAGE (shared by the what's new and the help screen)
+        // =================================================================
+
+        const APP_LANGS = ['de', 'en', 'fr', 'it'];
+        let appLang = 'de';
+        try {
+            const saved = localStorage.getItem('appLang');
+            if (APP_LANGS.includes(saved)) appLang = saved;
+        } catch (e) { /* storage blocked */ }
+
         /**
-         * Show the what's new screen in the given language and remember it
+         * Switch the language of both overlay screens and remember it
          * @param {'de'|'en'|'fr'|'it'} lang
          */
-        function setWhatsNewLanguage(lang) {
-            const texts = WHATS_NEW_TEXT[lang] || WHATS_NEW_TEXT.de;
-            const el = document.getElementById('whats-new');
-            el.setAttribute('lang', lang);
-            el.querySelectorAll('[data-i18n]').forEach(node => {
-                node.textContent = texts[node.dataset.i18n];
-            });
-            el.querySelectorAll('.wn-lang button').forEach(btn => {
-                const active = btn.dataset.lang === lang;
+        function setAppLanguage(lang) {
+            if (!APP_LANGS.includes(lang)) lang = 'de';
+            appLang = lang;
+            try { localStorage.setItem('appLang', lang); } catch (e) { /* storage blocked */ }
+            applyLanguage();
+        }
+
+        /**
+         * Apply the current language to the what's new and help screens
+         */
+        function applyLanguage() {
+            const wn = document.getElementById('whats-new');
+            if (wn) {
+                const texts = WHATS_NEW_TEXT[appLang];
+                wn.setAttribute('lang', appLang);
+                wn.querySelectorAll('[data-i18n]').forEach(node => {
+                    node.textContent = texts[node.dataset.i18n];
+                });
+            }
+            const help = document.getElementById('help-screen');
+            if (help) {
+                help.setAttribute('lang', appLang);
+                renderHelp();
+            }
+            document.querySelectorAll('.wn-lang button').forEach(btn => {
+                const active = btn.dataset.lang === appLang;
                 btn.classList.toggle('active', active);
                 btn.setAttribute('aria-pressed', String(active));
             });
-            try { localStorage.setItem('whatsNewLang', lang); } catch (e) { /* storage blocked */ }
         }
+
+        // Language buttons on both screens
+        document.querySelectorAll('.wn-lang button').forEach(btn =>
+            btn.addEventListener('click', () => setAppLanguage(btn.dataset.lang)));
+
+        // =================================================================
+        // HELP SCREEN (info button)
+        // =================================================================
+
+        let helpOpen = false;
+        // Default: touch explanation on touch devices, otherwise mouse & keyboard
+        let helpMode = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'desktop';
+
+        /**
+         * Fill the help screen for the current language and mode
+         */
+        function renderHelp() {
+            const help = document.getElementById('help-screen');
+            if (!help) return;
+            const texts = HELP_TEXT[appLang];
+            help.querySelectorAll('[data-help]').forEach(node => {
+                node.textContent = texts[node.dataset.help];
+            });
+            help.querySelectorAll('.help-mode button').forEach(btn => {
+                const active = btn.dataset.mode === helpMode;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-pressed', String(active));
+            });
+            const list = document.getElementById('help-list');
+            list.innerHTML = '';
+            HELP_ITEMS[helpMode].forEach(([key, icon]) => {
+                const [title, desc] = texts[key];
+                const li = document.createElement('li');
+                li.innerHTML = '<div class="wn-icon"><svg fill="none" stroke="currentColor" stroke-width="2" ' +
+                    'stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">' + HELP_ICONS[icon] +
+                    '</svg></div><div><strong></strong><span></span></div>';
+                // Texts via textContent (no HTML injection)
+                li.querySelector('strong').textContent = title;
+                li.querySelector('span').textContent = desc;
+                list.appendChild(li);
+            });
+        }
+
+        /**
+         * Switch between touch and mouse & keyboard explanation
+         * @param {'touch'|'desktop'} mode
+         */
+        function setHelpMode(mode) {
+            helpMode = mode === 'touch' ? 'touch' : 'desktop';
+            renderHelp();
+        }
+
+        /**
+         * Show the help screen
+         */
+        function openHelp() {
+            const help = document.getElementById('help-screen');
+            if (!help || helpOpen) return;
+            helpOpen = true;
+            renderHelp();
+            help.classList.remove('closing');
+            help.hidden = false;
+            help.scrollTop = 0;
+        }
+
+        /**
+         * Fade out the help screen
+         */
+        function closeHelp() {
+            if (!helpOpen) return;
+            helpOpen = false;
+            const help = document.getElementById('help-screen');
+            help.classList.add('closing');
+            setTimeout(() => { if (!helpOpen) help.hidden = true; }, 400);
+        }
+
+        (function initHelp() {
+            const help = document.getElementById('help-screen');
+            if (!help) return;
+            help.querySelectorAll('.help-mode button').forEach(btn =>
+                btn.addEventListener('click', () => setHelpMode(btn.dataset.mode)));
+            document.getElementById('help-close').addEventListener('click', closeHelp);
+        })();
 
         (function initWhatsNew() {
             const el = document.getElementById('whats-new');
             if (!el) return;
-            let seen = null, lang = null;
-            try {
-                seen = localStorage.getItem('whatsNewSeen');
-                lang = localStorage.getItem('whatsNewLang');
-            } catch (e) { /* storage blocked */ }
+            let seen = null;
+            try { seen = localStorage.getItem('whatsNewSeen'); } catch (e) { /* storage blocked */ }
             if (seen === WHATS_NEW_VERSION) {
                 el.remove();
                 return;
             }
             whatsNewOpen = true;
-            // German is the default; use the language chosen last time
-            if (lang && lang !== 'de' && WHATS_NEW_TEXT[lang]) setWhatsNewLanguage(lang);
-            el.querySelectorAll('.wn-lang button').forEach(btn =>
-                btn.addEventListener('click', () => setWhatsNewLanguage(btn.dataset.lang)));
             document.getElementById('wn-start').addEventListener('click', closeWhatsNew);
         })();
+
+        // German is in the HTML; switch if another language was chosen before
+        if (appLang !== 'de') applyLanguage();
 
         /**
          * Fade out the what's new screen and remember that it was seen
@@ -1688,6 +2009,14 @@
                 if (['Enter', 'NumpadEnter', 'Space', 'Escape'].includes(e.code)) {
                     e.preventDefault();
                     closeWhatsNew();
+                }
+                return;
+            }
+            // Help screen open: Escape / Enter close it, no video control behind it
+            if (helpOpen) {
+                if (['Enter', 'NumpadEnter', 'Escape'].includes(e.code)) {
+                    e.preventDefault();
+                    closeHelp();
                 }
                 return;
             }
@@ -2784,18 +3113,24 @@
                     state.lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                 } else {
                     // Single-finger: timeline scrub
-                    state.isDragging = true; 
-                    v1.pause(); 
+                    state.isDragging = true;
+                    v1.pause();
                     v2.pause();
                     state.lastX = e.touches[0].clientX;
+                    // Remember the start of a possible tap (double-tap detection)
+                    state.tapStartX = e.touches[0].clientX;
+                    state.tapStartY = e.touches[0].clientY;
+                    state.tapStartTime = performance.now();
+                    state.tapMoved = false;
                 }
             }, {passive: false});
 
             jog.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 2) {
-                    // Pinching: no scrub momentum
+                    // Pinching: no scrub momentum, not a tap
                     flywheel.reset();
                     state.isDragging = false;
+                    state.tapMoved = true;
                     // Pinch zoom handling
                     e.preventDefault();
                     
@@ -2830,6 +3165,9 @@
                     
                 } else if (state.isDragging) {
                     // Single-finger scrub
+                    if (Math.hypot(e.touches[0].clientX - state.tapStartX, e.touches[0].clientY - state.tapStartY) > 10) {
+                        state.tapMoved = true;
+                    }
                     const deltaX = e.touches[0].clientX - state.lastX;
                     state.lastX = e.touches[0].clientX;
                     flywheel.track(deltaX);
@@ -2840,6 +3178,19 @@
             jog.addEventListener('touchend', (e) => {
                 // Coast on with the release velocity (only when the last finger lifts)
                 if (state.isDragging && e.touches.length === 0) flywheel.release();
+                // Double-tap (two short taps without moving) resets the zoom.
+                // Own detection, because iOS does not reliably fire dblclick.
+                if (e.touches.length === 0 && state.isDragging && !state.tapMoved) {
+                    const now = performance.now();
+                    if (now - state.tapStartTime < 250) {
+                        if (now - (state.lastTapTime || 0) < 350) {
+                            resetZoom();
+                            state.lastTapTime = 0;
+                        } else {
+                            state.lastTapTime = now;
+                        }
+                    }
+                }
                 state.isDragging = false;
                 if (e.touches.length === 0) state.touchActive = false;
             });

@@ -2087,7 +2087,7 @@
          */
         function stepVideo(video, dir) {
             video.pause();
-            seekInstant(video, frameStepTime(video, video.currentTime, dir));
+            seekInstant(video, frameStepTime(video, videoTime(video), dir));
         }
 
         /**
@@ -2097,10 +2097,10 @@
             v1.pause();
             v2.pause();
             if (isLocked) {
-                seekSynced(frameStepTime(v1, v1.currentTime, dir));
+                seekSynced(frameStepTime(v1, videoTime(v1), dir));
             } else {
-                seekInstant(v1, frameStepTime(v1, v1.currentTime, dir));
-                seekInstant(v2, frameStepTime(v2, v2.currentTime, dir));
+                seekInstant(v1, frameStepTime(v1, videoTime(v1), dir));
+                seekInstant(v2, frameStepTime(v2, videoTime(v2), dir));
             }
         }
 
@@ -2307,22 +2307,58 @@
         
         /**
          * Seek video to specific time instantly
-         * Clamps time to valid range and skips tiny movements
+         * Clamps time to valid range and skips tiny movements.
+         *
+         * Throttling: while the video is still busy with a seek, the new
+         * target is only remembered and applied as soon as that seek is done
+         * ('seeked'). Otherwise fast scrubbing (up to 60 seeks per second)
+         * keeps aborting every seek and slower devices (phones, tablets,
+         * especially iOS) never get to draw a frame while the finger moves.
          * @param {HTMLVideoElement} video - Video element to seek
          * @param {number} time - Target time in seconds
          */
         function seekInstant(video, time) {
             // Seeking needs at least the metadata (duration) to be loaded
             if (video.readyState < 1) return;
-            
+
             // Clamp to valid range
             const target = Math.max(0, Math.min(time, video.duration || Infinity));
-            
+
+            // Busy with a seek: remember only the latest target
+            if (video.seeking) {
+                video._pendingSeek = target;
+                return;
+            }
+            video._pendingSeek = null;
+
             // Skip if change is negligible (prevents jitter)
             if (Math.abs(video.currentTime - target) < 0.001) return;
-            
+
             video.currentTime = target;
         }
+
+        /**
+         * Logical position of a video: the remembered target while a seek is
+         * still running, otherwise currentTime. All relative moves (scrub,
+         * frame step) start from here, so no movement gets lost.
+         * @param {HTMLVideoElement} video
+         */
+        function videoTime(video) {
+            return video._pendingSeek != null ? video._pendingSeek : video.currentTime;
+        }
+
+        // Seek finished: jump on to the latest remembered target
+        [v1, v2].forEach(video => {
+            video.addEventListener('seeked', () => {
+                if (video._pendingSeek != null) {
+                    const t = video._pendingSeek;
+                    video._pendingSeek = null;
+                    seekInstant(video, t);
+                }
+            });
+            // Starting playback discards a remembered target
+            video.addEventListener('play', () => { video._pendingSeek = null; });
+        });
 
         // =================================================================
         // UI UPDATE FUNCTION
@@ -2406,7 +2442,7 @@
                 syncLockStartTime2 = v2.currentTime;
                 
                 // Calculate and store time difference between videos
-                syncDiff = v2.currentTime - v1.currentTime;
+                syncDiff = videoTime(v2) - videoTime(v1);
                 btn.classList.add('active');
                 btn.title = 'Sync lock: on';
                 btn.setAttribute('aria-pressed', 'true');
@@ -2491,7 +2527,7 @@
                 v2.pause(); 
             } else {
                 // Re-align both videos before starting when sync-locked
-                if (isLocked) seekSynced(v1.currentTime);
+                if (isLocked) seekSynced(videoTime(v1));
                 v1.play();
                 v2.play();
             }
@@ -2541,7 +2577,7 @@
                     }
                     // Step back ~1/30th second per frame at 0.25x speed
                     const stepAmount = (1/30) * HOLD_PLAY_SPEED;
-                    seekInstant(video, video.currentTime - stepAmount);
+                    seekInstant(video, videoTime(video) - stepAmount);
                 }, 1000/30);
                 
                 // Store interval for cleanup
@@ -2728,14 +2764,14 @@
                         return;
                     }
                     const stepAmount = (1/30) * HOLD_PLAY_SPEED;
-                    const targetTime = v1.currentTime - stepAmount;
+                    const targetTime = videoTime(v1) - stepAmount;
 
                     if (isLocked) {
                         // Maintain sync offset (clamped at the video edges)
                         seekSynced(targetTime);
                     } else {
                         seekInstant(v1, targetTime);
-                        seekInstant(v2, v2.currentTime - stepAmount);
+                        seekInstant(v2, videoTime(v2) - stepAmount);
                     }
                 }, 1000/30);
                 
@@ -3044,7 +3080,7 @@
              * Scrub by a horizontal pixel delta (used by drag and flywheel)
              */
             const scrubBy = (deltaX) => {
-                const targetTime = (isLocked ? v1.currentTime : video.currentTime) + (deltaX * 0.01);
+                const targetTime = (isLocked ? videoTime(v1) : videoTime(video)) + (deltaX * 0.01);
                 if (isLocked) {
                     seekSynced(targetTime);
                 } else {
@@ -3336,7 +3372,7 @@
              * Scrub both videos by a horizontal pixel delta (drag and flywheel)
              */
             const scrubBy = (deltaX) => {
-                seekSynced(v1.currentTime + (deltaX * 0.01));
+                seekSynced(videoTime(v1) + (deltaX * 0.01));
 
                 state.tickPos += deltaX;
                 ticks.style.transform = `translateX(${state.tickPos % 200}px)`;

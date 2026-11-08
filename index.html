@@ -960,6 +960,7 @@
                 <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
                 <button type="button" data-lang="fr" lang="fr" title="Français" aria-pressed="false">FR</button>
                 <button type="button" data-lang="it" lang="it" title="Italiano" aria-pressed="false">IT</button>
+                <button type="button" data-lang="rm" lang="rm" title="Rumantsch Grischun" aria-pressed="false">RM</button>
             </div>
             <img src="Logo.png" alt="" class="wn-logo">
             <h2 id="wn-title" data-i18n="title">Neu in Video Analyser 2.1</h2>
@@ -1026,6 +1027,7 @@
                 <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
                 <button type="button" data-lang="fr" lang="fr" title="Français" aria-pressed="false">FR</button>
                 <button type="button" data-lang="it" lang="it" title="Italiano" aria-pressed="false">IT</button>
+                <button type="button" data-lang="rm" lang="rm" title="Rumantsch Grischun" aria-pressed="false">RM</button>
             </div>
             <img src="Logo.png" alt="" class="wn-logo">
             <h2 id="help-title" data-help="title">Bedienung</h2>
@@ -1442,6 +1444,23 @@
                 f6d: 'Un pulsante VIDEO rosso indica quale lettore attende ancora un video. Velocità da ⅛x a 1x.',
                 start: 'Iniziamo',
             },
+            rm: {
+                title: 'Nov en Video Analyser 2.1',
+                subtitle: 'Las meglieraziuns las pli impurtantas en ina survista',
+                f1t: 'Pass da maletg exacts',
+                f1d: 'La frequenza da maletgs vegn renconuschida automaticamain (25 – 240 fps), mintga pass è exactamain in maletg.',
+                f2t: 'Scrubbing cun slantsch',
+                f2d: 'Stritgar cun slantsch sur il jogwheel, e il video curra vinavant. In tutg u play al ferma immediatamain.',
+                f3t: 'Zoom & spustar sin laptop e desktop',
+                f3d: 'La rodella dal mieur engrondescha vers il cursur, trair cun il buttun dretg dal mieur spusta, er il pinch sin il trackpad funcziuna.',
+                f4t: 'Sincronisaziun side-by-side fidaivla',
+                f4d: 'La serradira d’aur tegna tuts dus videos sincrons – er a l’entschatta ed a la fin dad in clip.',
+                f5t: 'Tastas da scursanida',
+                f5d: 'Tasta da spazi: play / pausa · ← →: in maletg · + − 0: zoom · Shift + flizzas: spustar',
+                f6t: 'Manaschament pli survesaivel',
+                f6d: 'In buttun VIDEO cotschen mussa tge player dovra anc in video. Sveltezzas da ⅛x fin 1x.',
+                start: 'Cumenzar',
+            },
         };
 
         // =================================================================
@@ -1558,13 +1577,36 @@
                 timer: ['Misurare il tempo', 'Il pulsante accanto all’indicazione del tempo azzera il tempo sul fotogramma attuale – ideale per cronometrare un movimento.'],
                 fullscreenT: ['Schermo intero', 'Il pulsante schermo intero usa tutto lo schermo. Su iPhone aggiungi l’app con «Condividi › Aggiungi alla schermata Home».'],
             },
+            // Rumantsch Grischun (iOS has no Romansh UI, so the iPhone menu names stay German)
+            rm: {
+                title: 'Instrucziuns',
+                subtitle: 'Uschia funcziuna il Video Analyser',
+                modeTouch: 'Touch',
+                modeDesktop: 'Mieur & tastatura',
+                close: 'Chapì',
+                loadT: ['Chargiar in video', 'Tutgar VIDEO e tscherner in clip. Il buttun è cotschen uschè ditg ch’il player n’ha anc nagin video.'],
+                loadD: ['Chargiar in video', 'Cliccar sin VIDEO e tscherner in clip. Il buttun è cotschen uschè ditg ch’il player n’ha anc nagin video.'],
+                scrubT: ['Ir tras il video', 'Stritgar cun in det a sanestra u a dretga sur il video. Laschar liber cun slantsch, lura curra el vinavant – in tutg al ferma.'],
+                scrubD: ['Ir tras il video', 'Trair a sanestra u a dretga cun il buttun sanester dal mieur smatgà. Laschar liber cun slantsch, lura curra el vinavant – in clic al ferma.'],
+                stepT: ['Maletg per maletg', 'Tutgar ← / → per exactamain in maletg enavos u envi. Tegnair smatgà per ralentì (¼ da la sveltezza) enavos u envi.'],
+                stepD: ['Maletg per maletg', 'Tastas da flizza ← / → u ils buttuns cun flizzas: exactamain in maletg. Tegnair smatgà in buttun per ralentì (¼ da la sveltezza).'],
+                zoomT: ['Zoom & spustar', 'Slargiar dus dets per engrondir, spustar cun dus dets. Tutgar duas giadas returna il zoom.'],
+                zoomD: ['Zoom', 'La rodella dal mieur engrondescha vers il cursur, sin il trackpad slargiar dus dets. Tastas + / − / 0, cliccar duas giadas returna.'],
+                panD: ['Spustar il maletg engrondì', 'Trair cun il buttun dretg dal mieur smatgà, rullar cun dus dets sin il trackpad u Shift + tastas da flizza.'],
+                playT: ['Reproducir & sveltezza', 'Il buttun radund blau cumenza e ferma. Sveltezza da ⅛x fin 1x, |⁠← siglia a l’entschatta.'],
+                playD: ['Reproducir & sveltezza', 'Tasta da spazi u il buttun radund blau: play / pausa. Sveltezza da ⅛x fin 1x, |⁠← siglia a l’entschatta.'],
+                syncT: ['Cumparegliar dus videos', 'SIDE-BY-SIDE mussa dus videos. Metter tuts dus sin il medem mument e tutgar la serradira d’aur – lura sa movan els ensemen.'],
+                syncD: ['Cumparegliar dus videos', 'SIDE-BY-SIDE mussa dus videos. Metter tuts dus sin il medem mument e cliccar sin la serradira d’aur – lura sa movan els ensemen. Las tastas da zoom ageschan sin il video sut il cursur.'],
+                timer: ['Mesirar il temp', 'Il buttun sper l’indicaziun dal temp metta il temp a nulla tar il maletg actual – ideal per mesirar moviments.'],
+                fullscreenT: ['Entir visur', 'Il buttun per l’entir visur utilisescha l’entir visur. Sin l’iPhone agiuntar l’app cun «Teilen › Zum Home-Bildschirm».'],
+            },
         };
 
         // =================================================================
         // APP LANGUAGE (shared by the what's new and the help screen)
         // =================================================================
 
-        const APP_LANGS = ['de', 'en', 'fr', 'it'];
+        const APP_LANGS = ['de', 'en', 'fr', 'it', 'rm'];
         let appLang = 'de';
         try {
             const saved = localStorage.getItem('appLang');
